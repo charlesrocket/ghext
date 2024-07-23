@@ -1,0 +1,9 @@
+/release/
+/debug/
+/build/
+/build-*/
+/docgen_tmp/
+
+.zig-cache/
+zig-out/
+kcov-out/
