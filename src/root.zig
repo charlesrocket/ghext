@@ -1,10 +1,16 @@
+//! Extract HEAD hashes from `git` repositories, no dependencies.
+
 const std = @import("std");
 const fs = std.fs;
 
 pub const Ghext = struct {
+    /// Path to HEAD file.
     path: []const u8 = ".git/HEAD",
+    /// Commit hash.
     hash: []const u8 = "none",
+    /// Short commit hash.
     hash_short: []const u8 = "none",
+    /// Memory allocator.
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Ghext {
