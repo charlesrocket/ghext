@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
         .source_dir = lib.getEmittedDocs(),
     });
  
-    doc_step.dependOn(&docs_install.step);
+    docs_step.dependOn(&docs_install.step);
     b.default_step.dependOn(docs_step);
 
     const kcov = b.addSystemCommand(&.{ "kcov", "kcov-out", "--include-path=src" });
