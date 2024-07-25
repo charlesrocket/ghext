@@ -2,18 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.1.0] - 2024-07-25
 
 ### Documentation
 
 - Add readme
 - Comment main struct
+- Add changelog
 
 ### Features
 
 - Add `Ghext`
 - Add `read()`
 - Add `hash_short`
+- Support tags
+- Add repository state
 
 ### Miscellaneous tasks
 
@@ -25,6 +28,7 @@ All notable changes to this project will be documented in this file.
 - Setup integrations
 - Configure codecov
 - Add `release` job
+- Deploy documentation
 
 ### Build
 
