@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "doc",
         .source_dir = lib.getEmittedDocs(),
     });
- 
+
     docs_step.dependOn(&docs_install.step);
     b.default_step.dependOn(docs_step);
 
