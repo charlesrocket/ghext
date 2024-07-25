@@ -19,7 +19,7 @@ pub const Ghext = struct {
 
     fn getState(self: *Ghext) !void {
         const proc = try std.process.Child.run(.{
-            .allocator = std.testing.allocator,
+            .allocator = self.allocator,
             .argv = &.{ "git", "diff-index", "--quiet", "HEAD", "--" },
         });
 
