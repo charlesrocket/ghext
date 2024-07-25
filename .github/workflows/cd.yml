@@ -62,5 +62,5 @@ jobs:
         with:
           path: zig-out/doc/
 
-      - name: Deploy docsite
+      - name: Deploy documentation
         uses: actions/deploy-pages@v4
