@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const root_source_file = b.path("src/root.zig");
 
-    _ = b.addModule("Ghext", .{ .root_source_file = root_source_file });
+    _ = b.addModule("ghext", .{ .root_source_file = root_source_file });
 
     const lib_step = b.step("lib", "Install library");
     const lib = b.addStaticLibrary(.{
