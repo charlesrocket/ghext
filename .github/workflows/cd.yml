@@ -8,8 +8,18 @@ name: CD
         required: true
         type: string
 
+env:
+  ZIG_VERSION: 0.13.0
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 jobs:
   release:
@@ -27,3 +37,30 @@ jobs:
         with:
           changelog: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy documentation
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Generate documentation
+        run: zig build docs
+
+      - name: Upload artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: zig-out/doc/
+
+      - name: Deploy docsite
+        uses: actions/deploy-pages@v4

@@ -67,6 +67,8 @@ jobs:
     needs: [test]
     permissions:
       contents: write
+      pages: write
+      id-token: write
 
     if: |
       github.repository_owner == 'charlesrocket' &&
