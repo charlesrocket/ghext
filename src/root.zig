@@ -33,7 +33,7 @@ fn getState(self: *Self) !void {
 
 fn readWithGit(self: *Self) !void {
     const proc = try std.process.Child.run(.{
-        .allocator = std.testing.allocator,
+        .allocator = self.allocator,
         .argv = &.{ "git", "rev-parse", "HEAD" },
     });
 
@@ -84,7 +84,7 @@ pub fn read(self: *Self) !void {
 pub fn init(allocator: std.mem.Allocator) !Self {
     var binary = false;
     const proc = try std.process.Child.run(.{
-        .allocator = std.testing.allocator,
+        .allocator = allocator,
         .argv = &.{ "git", "--version" },
     });
 
@@ -108,7 +108,7 @@ pub fn deinit(self: *Self) void {
 
 fn gitInstalled(self: *Self) bool {
     const proc = try std.process.Child.run(.{
-        .allocator = std.testing.allocator,
+        .allocator = self.allocator,
         .argv = &.{ "git", "--version" },
     });
 
