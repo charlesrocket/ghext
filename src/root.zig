@@ -5,56 +5,58 @@ const fs = std.fs;
 
 const Self = @This();
 /// Path to HEAD file.
-path: []const u8 = ".git/HEAD",
+const path: []const u8 = ".git/HEAD";
 /// Commit hash.
-hash: []const u8 = "none",
+hash: []const u8,
 /// Short commit hash.
-hash_short: []const u8 = "none",
+hash_short: []const u8,
 /// State
 dirty: bool = false,
 /// `git` binary detection.
 binary: bool,
-/// Memory allocator.
-allocator: std.mem.Allocator,
 
-fn getState(self: *Self) !void {
+fn getState(allocator: std.mem.Allocator) !bool {
     const proc = try std.process.Child.run(.{
-        .allocator = self.allocator,
+        .allocator = allocator,
         .argv = &.{ "git", "diff-index", "--quiet", "HEAD", "--" },
     });
 
-    defer self.allocator.free(proc.stdout);
-    defer self.allocator.free(proc.stderr);
+    defer allocator.free(proc.stdout);
+    defer allocator.free(proc.stderr);
 
     if (proc.term.Exited == 1) {
-        self.dirty = true;
+        return true;
+    } else {
+        return false;
     }
 }
 
-fn readWithGit(self: *Self) !void {
+fn readWithGit(allocator: std.mem.Allocator) anyerror![]const u8 {
     const proc = try std.process.Child.run(.{
-        .allocator = self.allocator,
+        .allocator = allocator,
         .argv = &.{ "git", "rev-parse", "HEAD" },
     });
 
-    defer self.allocator.free(proc.stdout);
-    defer self.allocator.free(proc.stderr);
+    defer allocator.free(proc.stdout);
+    defer allocator.free(proc.stderr);
 
     if (proc.term.Exited == 0) {
-        self.hash = std.mem.trimRight(u8, proc.stdout, "\n");
-        self.hash_short = self.hash[0..7];
+        const hash = std.mem.trimRight(u8, proc.stdout, "\n");
+        return hash;
+    } else {
+        return error.unexpected;
     }
 }
 
-fn readWithoutGit(self: *Self) !void {
+fn readWithoutGit(allocator: std.mem.Allocator) ![]const u8 {
     var buffer: [1024]u8 = undefined;
     var hash: []const u8 = undefined;
-    const file = try std.fs.cwd().readFile(self.path, &buffer);
+    const file = try std.fs.cwd().readFile(Self.path, &buffer);
 
     if (std.ascii.startsWithIgnoreCase(file, "ref: ")) {
         const size = std.mem.replacementSize(u8, file, "ref: ", ".git/");
-        const ref = try self.allocator.alloc(u8, size);
-        defer self.allocator.free(ref);
+        const ref = try allocator.alloc(u8, size);
+        defer allocator.free(ref);
 
         _ = std.mem.replace(u8, file, "ref: ", ".git/", ref);
 
@@ -66,23 +68,26 @@ fn readWithoutGit(self: *Self) !void {
         hash = std.mem.trimRight(u8, file, "\n");
     }
 
-    self.hash = try std.mem.Allocator.dupe(self.allocator, u8, hash);
-    defer self.allocator.free(self.hash);
-
-    self.hash_short = self.hash[0..7];
-}
-
-pub fn read(self: *Self) !void {
-    if (self.binary) {
-        try self.getState();
-        try self.readWithGit();
-    } else {
-        try self.readWithoutGit();
-    }
+    return hash;
 }
 
 pub fn init(allocator: std.mem.Allocator) !Self {
-    var binary = false;
+    const git = try Self.gitInstalled(allocator);
+    var dirty: bool = undefined;
+    var hash: []const u8 = undefined;
+
+    if (git) {
+        dirty = try Self.getState(allocator);
+        hash = try Self.readWithGit(allocator);
+    } else {
+        hash = try Self.readWithoutGit(allocator);
+    }
+
+    const output = hash;
+    return .{ .binary = git, .hash = output, .hash_short = hash[0..7], .dirty = dirty };
+}
+
+fn gitInstalled(allocator: std.mem.Allocator) !bool {
     const proc = try std.process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "--version" },
@@ -91,30 +96,6 @@ pub fn init(allocator: std.mem.Allocator) !Self {
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    if (proc.term.Exited == 0) {
-        binary = true;
-    }
-
-    return .{ .allocator = allocator, .binary = binary };
-}
-
-pub fn deinit(self: *Self) void {
-    if (!std.mem.eql(u8, self.hash, "none")) {
-        if (!self.binary) {
-            self.allocator.free(self.hash);
-        }
-    }
-}
-
-fn gitInstalled(self: *Self) bool {
-    const proc = try std.process.Child.run(.{
-        .allocator = self.allocator,
-        .argv = &.{ "git", "--version" },
-    });
-
-    defer self.allocator.free(proc.stdout);
-    defer self.allocator.free(proc.stderr);
-
     if (proc.term.Exited == 1) {
         return true;
     } else {
@@ -122,32 +103,21 @@ fn gitInstalled(self: *Self) bool {
     }
 }
 
-test "read" {
-    var ghx = try Self.init(std.testing.allocator);
-    defer ghx.deinit();
-
-    _ = try ghx.read();
+test "init" {
+    const ghx = try Self.init(std.testing.allocator);
 
     try std.testing.expect(ghx.hash_short.len == 7);
     try std.testing.expect(ghx.hash.len == 40);
 }
 
 test "read (git)" {
-    var ghx = try Self.init(std.testing.allocator);
-    defer ghx.deinit();
+    const hash = try Self.readWithGit(std.testing.allocator);
 
-    _ = try ghx.readWithGit();
-
-    try std.testing.expect(ghx.hash_short.len == 7);
-    try std.testing.expect(ghx.hash.len == 40);
+    try std.testing.expect(hash.len == 40);
 }
 
 test "read (no git)" {
-    var ghx = try Self.init(std.testing.allocator);
-    defer ghx.deinit();
+    const hash = try Self.readWithoutGit(std.testing.allocator);
 
-    _ = try ghx.readWithoutGit();
-
-    try std.testing.expect(ghx.hash_short.len == 7);
-    try std.testing.expect(ghx.hash.len == 40);
+    try std.testing.expect(hash.len == 40);
 }
