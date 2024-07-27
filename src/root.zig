@@ -1,4 +1,4 @@
-//! Extract HEAD hashes from `git` repositories, no dependencies.
+//! Extract HEAD hashes from `git` repositories.
 
 const std = @import("std");
 const fs = std.fs;
@@ -83,8 +83,14 @@ pub fn init(allocator: std.mem.Allocator) !Self {
         hash = try Self.readWithoutGit(allocator);
     }
 
-    const output = hash;
-    return .{ .binary = git, .hash = output, .hash_short = hash[0..7], .dirty = dirty };
+    var out = try std.ArrayList(u8).initCapacity(allocator, 40);
+    defer out.deinit();
+    try out.insertSlice(0, hash);
+    var result_short = try out.clone();
+    const result = try out.toOwnedSlice();
+    const result2 = try result_short.toOwnedSlice();
+
+    return .{ .binary = git, .hash = result, .hash_short = result2[0..7], .dirty = dirty };
 }
 
 fn gitInstalled(allocator: std.mem.Allocator) !bool {
