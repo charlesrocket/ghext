@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2024-07-29
+
+### Bug Fixes
+
+- Use local allocator
+- Replace allocators
+- [**breaking**] Drop `Self.allocator`
+- Correct slice ownership
+- Use fixed size array
+
+### Features
+
+- Use local module
+
+### Operations
+
+- Rename docs task
+
+### Refactor
+
+- Drop `Self`
+
 ## [0.1.0] - 2024-07-25
 
 ### Documentation
