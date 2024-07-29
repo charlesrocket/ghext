@@ -3,7 +3,6 @@
 const std = @import("std");
 const fs = std.fs;
 
-const Self = @This();
 /// Path to HEAD file.
 const path: []const u8 = ".git/HEAD";
 /// Commit hash.
@@ -48,7 +47,7 @@ fn readWithGit(allocator: std.mem.Allocator) anyerror![40]u8 {
 
 fn readWithoutGit() ![40]u8 {
     var buffer: [1024]u8 = undefined;
-    const file = try std.fs.cwd().readFile(Self.path, &buffer);
+    const file = try std.fs.cwd().readFile(@This().path, &buffer);
 
     if (std.ascii.startsWithIgnoreCase(file, "ref: ")) {
         _ = @memcpy(file[0..5], ".git/");
@@ -64,16 +63,16 @@ fn readWithoutGit() ![40]u8 {
     }
 }
 
-pub fn read(allocator: std.mem.Allocator) !Self {
-    const git = try Self.gitInstalled(allocator);
+pub fn read(allocator: std.mem.Allocator) !@This() {
+    const git = try @This().gitInstalled(allocator);
     var dirty: bool = undefined;
     var hash: [40]u8 = undefined;
 
     if (git) {
-        dirty = try Self.getState(allocator);
-        hash = try Self.readWithGit(allocator);
+        dirty = try @This().getState(allocator);
+        hash = try @This().readWithGit(allocator);
     } else {
-        hash = try Self.readWithoutGit();
+        hash = try @This().readWithoutGit();
     }
 
     return .{ .binary = git, .hash = hash, .dirty = dirty };
@@ -96,19 +95,19 @@ fn gitInstalled(allocator: std.mem.Allocator) !bool {
 }
 
 test "read" {
-    const ghx = try Self.read(std.testing.allocator);
+    const ghx = try @This().read(std.testing.allocator);
 
     try std.testing.expect(ghx.hash.len == 40);
 }
 
 test "read (git)" {
-    const hash = try Self.readWithGit(std.testing.allocator);
+    const hash = try @This().readWithGit(std.testing.allocator);
 
     try std.testing.expect(hash.len == 40);
 }
 
 test "read (no git)" {
-    const hash = try Self.readWithoutGit();
+    const hash = try @This().readWithoutGit();
 
     try std.testing.expect(hash.len == 40);
 }
