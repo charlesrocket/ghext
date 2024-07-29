@@ -7,9 +7,7 @@ const Self = @This();
 /// Path to HEAD file.
 const path: []const u8 = ".git/HEAD";
 /// Commit hash.
-hash: []const u8,
-/// Short commit hash.
-hash_short: []const u8,
+hash: [40]u8,
 /// State
 dirty: bool = false,
 /// `git` binary detection.
@@ -31,7 +29,7 @@ fn getState(allocator: std.mem.Allocator) !bool {
     }
 }
 
-fn readWithGit(allocator: std.mem.Allocator) anyerror![]const u8 {
+fn readWithGit(allocator: std.mem.Allocator) anyerror![40]u8 {
     const proc = try std.process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "rev-parse", "HEAD" },
@@ -41,56 +39,44 @@ fn readWithGit(allocator: std.mem.Allocator) anyerror![]const u8 {
     defer allocator.free(proc.stderr);
 
     if (proc.term.Exited == 0) {
-        const hash = std.mem.trimRight(u8, proc.stdout, "\n");
-        return hash;
+        var hash = std.mem.trimRight(u8, proc.stdout, "\n");
+        return hash[0..40].*;
     } else {
         return error.unexpected;
     }
 }
 
-fn readWithoutGit(allocator: std.mem.Allocator) ![]const u8 {
+fn readWithoutGit() ![40]u8 {
     var buffer: [1024]u8 = undefined;
-    var hash: []const u8 = undefined;
     const file = try std.fs.cwd().readFile(Self.path, &buffer);
 
     if (std.ascii.startsWithIgnoreCase(file, "ref: ")) {
-        const size = std.mem.replacementSize(u8, file, "ref: ", ".git/");
-        const ref = try allocator.alloc(u8, size);
-        defer allocator.free(ref);
+        _ = @memcpy(file[0..5], ".git/");
 
-        _ = std.mem.replace(u8, file, "ref: ", ".git/", ref);
-
-        const branch = std.mem.trimRight(u8, ref, "\n");
+        const branch = std.mem.trimRight(u8, file, "\n");
         const hash_tmp = try std.fs.cwd().readFile(branch, &buffer);
 
-        hash = std.mem.trimRight(u8, hash_tmp, "\n");
+        var hash = std.mem.trimRight(u8, hash_tmp, "\n");
+        return hash[0..40].*;
     } else {
-        hash = std.mem.trimRight(u8, file, "\n");
+        var hash = std.mem.trimRight(u8, file, "\n");
+        return hash[0..40].*;
     }
-
-    return hash;
 }
 
-pub fn init(allocator: std.mem.Allocator) !Self {
+pub fn read(allocator: std.mem.Allocator) !Self {
     const git = try Self.gitInstalled(allocator);
     var dirty: bool = undefined;
-    var hash: []const u8 = undefined;
+    var hash: [40]u8 = undefined;
 
     if (git) {
         dirty = try Self.getState(allocator);
         hash = try Self.readWithGit(allocator);
     } else {
-        hash = try Self.readWithoutGit(allocator);
+        hash = try Self.readWithoutGit();
     }
 
-    var out = try std.ArrayList(u8).initCapacity(allocator, 40);
-    defer out.deinit();
-    try out.insertSlice(0, hash);
-    var result_short = try out.clone();
-    const result = try out.toOwnedSlice();
-    const result2 = try result_short.toOwnedSlice();
-
-    return .{ .binary = git, .hash = result, .hash_short = result2[0..7], .dirty = dirty };
+    return .{ .binary = git, .hash = hash, .dirty = dirty };
 }
 
 fn gitInstalled(allocator: std.mem.Allocator) !bool {
@@ -109,10 +95,9 @@ fn gitInstalled(allocator: std.mem.Allocator) !bool {
     }
 }
 
-test "init" {
-    const ghx = try Self.init(std.testing.allocator);
+test "read" {
+    const ghx = try Self.read(std.testing.allocator);
 
-    try std.testing.expect(ghx.hash_short.len == 7);
     try std.testing.expect(ghx.hash.len == 40);
 }
 
@@ -123,7 +108,7 @@ test "read (git)" {
 }
 
 test "read (no git)" {
-    const hash = try Self.readWithoutGit(std.testing.allocator);
+    const hash = try Self.readWithoutGit();
 
     try std.testing.expect(hash.len == 40);
 }
