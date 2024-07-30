@@ -75,6 +75,10 @@ pub fn read(allocator: std.mem.Allocator) !@This() {
         hash = try @This().readWithoutGit();
     }
 
+    if (!@This().isValid(&hash)) {
+        return error.unexpected;
+    }
+
     return .{ .binary = git, .hash = hash, .dirty = dirty };
 }
 
@@ -92,6 +96,20 @@ fn gitInstalled(allocator: std.mem.Allocator) !bool {
     } else {
         return false;
     }
+}
+
+fn isValid(hash: anytype) bool {
+    if (hash.len != 40) {
+        return false;
+    }
+
+    for (hash[0..]) |byte| {
+        if (!std.ascii.isHex(byte)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 test "read" {
