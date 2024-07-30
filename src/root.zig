@@ -46,7 +46,7 @@ fn readWithGit(allocator: std.mem.Allocator) anyerror![40]u8 {
 
 fn readWithoutGit() ![40]u8 {
     var buffer: [1024]u8 = undefined;
-    const file = try std.fs.cwd().readFile(@This().path, &buffer);
+    const file = try std.fs.cwd().readFile(path, &buffer);
 
     if (std.ascii.startsWithIgnoreCase(file, "ref: ")) {
         _ = @memcpy(file[0..5], ".git/");
@@ -64,18 +64,18 @@ fn readWithoutGit() ![40]u8 {
 
 /// Creates `Ghext` instance using specified allocator and reads the state of the repository.
 pub fn read(allocator: std.mem.Allocator) !@This() {
-    const git = try @This().gitInstalled(allocator);
+    const git = try gitInstalled(allocator);
     var dirty: bool = undefined;
     var hash: [40]u8 = undefined;
 
     if (git) {
-        dirty = try @This().getState(allocator);
-        hash = try @This().readWithGit(allocator);
+        dirty = try getState(allocator);
+        hash = try readWithGit(allocator);
     } else {
-        hash = try @This().readWithoutGit();
+        hash = try readWithoutGit();
     }
 
-    if (!@This().isValid(&hash)) {
+    if (!isValid(&hash)) {
         return error.unexpected;
     }
 
@@ -113,19 +113,19 @@ fn isValid(hash: anytype) bool {
 }
 
 test "read" {
-    const ghx = try @This().read(std.testing.allocator);
+    const ghx = try read(std.testing.allocator);
 
     try std.testing.expect(ghx.hash.len == 40);
 }
 
 test "read (git)" {
-    const hash = try @This().readWithGit(std.testing.allocator);
+    const hash = try readWithGit(std.testing.allocator);
 
     try std.testing.expect(hash.len == 40);
 }
 
 test "read (no git)" {
-    const hash = try @This().readWithoutGit();
+    const hash = try readWithoutGit();
 
     try std.testing.expect(hash.len == 40);
 }
