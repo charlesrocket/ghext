@@ -3,11 +3,10 @@
 const std = @import("std");
 const fs = std.fs;
 
-/// Path to HEAD file.
 const path: []const u8 = ".git/HEAD";
 /// Commit hash.
 hash: [40]u8,
-/// State
+/// State (requires `git` binary in the `$PATH`).
 dirty: bool = false,
 /// `git` binary detection.
 binary: bool,
@@ -63,6 +62,7 @@ fn readWithoutGit() ![40]u8 {
     }
 }
 
+/// Creates `Ghext` instance using specified allocator and reads the state of the repository.
 pub fn read(allocator: std.mem.Allocator) !@This() {
     const git = try @This().gitInstalled(allocator);
     var dirty: bool = undefined;
