@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-08-04
+
+### Bug Fixes
+
+- Fix binary check
+
+### Documentation
+
+- Update comments
+- Comment `deinit()`
+
+### Features
+
+- Add validator
+- Support SHA256
+
+### Refactor
+
+- Drop redundant `@This()`
+
 ## [0.2.0] - 2024-07-29
 
 ### Bug Fixes
