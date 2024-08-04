@@ -100,6 +100,7 @@ pub fn read(allocator: mem.Allocator) !Ghext {
     return .{ .binary = git, .hash = hash, .dirty = dirty };
 }
 
+/// Releases allocated memory.
 pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
     allocator.free(self.hash);
 }
