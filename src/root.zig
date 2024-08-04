@@ -2,17 +2,28 @@
 
 const std = @import("std");
 const fs = std.fs;
+const ascii = std.ascii;
+const process = std.process;
+const mem = std.mem;
 
-const path: []const u8 = ".git/HEAD";
-/// Commit hash.
-hash: [40]u8,
+const Ghext = @This();
+const PATH: []const u8 = ".git/HEAD";
+
+/// Possible error types.
+pub const Error = error{
+    InvalidHash,
+    ReadFailed,
+};
+
+/// HEAD commit hash.
+hash: []const u8,
 /// State (requires `git` binary in the `$PATH`).
 dirty: bool = false,
 /// `git` binary detection.
 binary: bool,
 
-fn getState(allocator: std.mem.Allocator) !bool {
-    const proc = try std.process.Child.run(.{
+fn getState(allocator: mem.Allocator) !bool {
+    const proc = try process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "diff-index", "--quiet", "HEAD", "--" },
     });
@@ -27,63 +38,74 @@ fn getState(allocator: std.mem.Allocator) !bool {
     }
 }
 
-fn readWithGit(allocator: std.mem.Allocator) anyerror![40]u8 {
-    const proc = try std.process.Child.run(.{
+fn readWithGit(allocator: mem.Allocator, arr: *std.ArrayListAligned(u8, null)) anyerror!void {
+    const proc = try process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "rev-parse", "HEAD" },
     });
 
+    if (proc.term.Exited == 0) {
+        const hash = mem.trimRight(u8, proc.stdout, "\n");
+        try arr.appendSlice(hash);
+    }
+
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    if (proc.term.Exited == 0) {
-        var hash = std.mem.trimRight(u8, proc.stdout, "\n");
-        return hash[0..40].*;
-    } else {
-        return error.unexpected;
+    if (proc.term.Exited > 0) {
+        return Error.ReadFailed;
     }
 }
 
-fn readWithoutGit() ![40]u8 {
+fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     var buffer: [1024]u8 = undefined;
-    const file = try std.fs.cwd().readFile(path, &buffer);
+    var hash: []const u8 = undefined;
+    const file = try fs.cwd().readFile(PATH, &buffer);
 
-    if (std.ascii.startsWithIgnoreCase(file, "ref: ")) {
+    if (ascii.startsWithIgnoreCase(file, "ref: ")) {
         _ = @memcpy(file[0..5], ".git/");
 
-        const branch = std.mem.trimRight(u8, file, "\n");
-        const hash_tmp = try std.fs.cwd().readFile(branch, &buffer);
+        const branch = mem.trimRight(u8, file, "\n");
+        const hash_tmp = try fs.cwd().readFile(branch, &buffer);
 
-        var hash = std.mem.trimRight(u8, hash_tmp, "\n");
-        return hash[0..40].*;
+        hash = mem.trimRight(u8, hash_tmp, "\n");
+        try arr.appendSlice(hash);
     } else {
-        var hash = std.mem.trimRight(u8, file, "\n");
-        return hash[0..40].*;
+        hash = mem.trimRight(u8, file, "\n");
+        try arr.appendSlice(hash);
     }
 }
 
 /// Creates `Ghext` instance using specified allocator and reads the state of the repository.
-pub fn read(allocator: std.mem.Allocator) !@This() {
+pub fn read(allocator: mem.Allocator) !Ghext {
     const git = try gitInstalled(allocator);
-    var dirty: bool = undefined;
-    var hash: [40]u8 = undefined;
+    var dirty: bool = false;
+    var arr = std.ArrayList(u8).init(allocator);
+    defer arr.deinit();
 
     if (git) {
         dirty = try getState(allocator);
-        hash = try readWithGit(allocator);
+
+        _ = try readWithGit(allocator, &arr);
     } else {
-        hash = try readWithoutGit();
+        _ = try readWithoutGit(&arr);
     }
 
-    if (!isValid(&hash)) {
-        return error.unexpected;
+    const hash = try arr.toOwnedSlice();
+
+    if (!isValid(hash)) {
+        return Error.InvalidHash;
     }
 
     return .{ .binary = git, .hash = hash, .dirty = dirty };
 }
 
-fn gitInstalled(allocator: std.mem.Allocator) !bool {
-    const proc = try std.process.Child.run(.{
+pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
+    allocator.free(self.hash);
+}
+
+fn gitInstalled(allocator: mem.Allocator) !bool {
+    const proc = try process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "--version" },
     });
@@ -98,13 +120,18 @@ fn gitInstalled(allocator: std.mem.Allocator) !bool {
     }
 }
 
-fn isValid(hash: anytype) bool {
-    if (hash.len != 40) {
-        return false;
+fn isValid(sha: []const u8) bool {
+    switch (sha.len) {
+        20 => {},
+        40 => {},
+        64 => {},
+        else => {
+            return false;
+        },
     }
 
-    for (hash[0..]) |byte| {
-        if (!std.ascii.isHex(byte)) {
+    for (sha[0..]) |byte| {
+        if (!ascii.isHex(byte)) {
             return false;
         }
     }
@@ -112,20 +139,41 @@ fn isValid(hash: anytype) bool {
     return true;
 }
 
-test "read" {
-    const ghx = try read(std.testing.allocator);
+test read {
+    var ghx = try Ghext.read(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
 
     try std.testing.expect(ghx.hash.len == 40);
 }
 
 test "read (git)" {
-    const hash = try readWithGit(std.testing.allocator);
+    var sha = std.ArrayList(u8).init(std.testing.allocator);
+    defer sha.deinit();
 
-    try std.testing.expect(hash.len == 40);
+    _ = try readWithGit(std.testing.allocator, &sha);
+
+    try std.testing.expect(sha.items.len == 40);
 }
 
 test "read (no git)" {
-    const hash = try readWithoutGit();
+    var sha = std.ArrayList(u8).init(std.testing.allocator);
+    defer sha.deinit();
 
-    try std.testing.expect(hash.len == 40);
+    _ = try readWithoutGit(&sha);
+
+    try std.testing.expect(sha.items.len == 40);
+}
+
+test "validation" {
+    const sha1 = "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33";
+    const sha256 = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae";
+    const sha256t = "2c26b46b68ffc68ff99b";
+    const invalid_a = "2c26b46b68ffc68ff99z";
+    const invalid_b = "2c26b46b68ffc68ff96";
+
+    try std.testing.expect(isValid(sha1));
+    try std.testing.expect(isValid(sha256));
+    try std.testing.expect(isValid(sha256t));
+    try std.testing.expect(!isValid(invalid_a));
+    try std.testing.expect(!isValid(invalid_b));
 }
