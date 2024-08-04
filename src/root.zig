@@ -91,7 +91,7 @@ fn gitInstalled(allocator: std.mem.Allocator) !bool {
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    if (proc.term.Exited == 1) {
+    if (proc.term.Exited == 0) {
         return true;
     } else {
         return false;
