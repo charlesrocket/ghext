@@ -7,7 +7,7 @@ Extract hashes of the last commit from `git` repository.
 ## Installation
 
 `build.zig`:
-``` zig
+```zig
 const ghext_dep = b.dependency("ghext", .{
     .target = target,
     .optimize = optimize,
@@ -16,8 +16,9 @@ const ghext_dep = b.dependency("ghext", .{
 const ghext = ghext_dep.module("ghext");
 exe.root_module.addImport("ghext", ghext);
 ```
+
 `build.zig.zon`:
-``` zig
+```zig
 .ghext = .{
     .url = "https://github.com/charlesrocket/ghext/archive/refs/tags/0.3.0.tar.gz",
     .hash = "12200acee906e217dafde5539a1e5905d093c97b6ba2408e0653772814e3643efc76",
@@ -26,12 +27,12 @@ exe.root_module.addImport("ghext", ghext);
 
 ### Example
 
-``` zig
-const ghext = @import("ghext");
-var Ghext = try ghext.read(allocator);
-defer Ghext.deinit(allocator);
+```zig
+const Ghext = @import("ghext");
+var gxt = try Ghext.read(allocator);
+defer gxt.deinit(allocator);
 
-const hash = Ghext.hash[0..7];
+const hash_short = gxt.hash[0..7];
 ```
 
 ## Documentation
