@@ -14,6 +14,11 @@ Extract the hashes of last commits from `git` repositories with `ghext`. Support
 },
 ```
 
+## Usage
+
+> [!NOTE]
+> `git` binary is not required.
+
 ### Standard
 
 `build.zig`:
@@ -27,23 +32,34 @@ const ghext = ghext_dep.module("ghext");
 exe.root_module.addImport("ghext", ghext);
 ```
 
-### Build system
-
-`build.zig`:
-```zig
-inline fn hash() ![]const u8 {
-    const gxt = @import("ghext").Ghext.read(std.heap.page_allocator) catch unreachable;
-    return gxt.hash;
-```
-
-## Standard example
-
+`app.zig`:
 ```zig
 const Ghext = @import("ghext");
 var gxt = try Ghext.read(allocator);
 defer gxt.deinit(allocator);
 
 const hash_short = gxt.hash[0..7];
+```
+
+### Build system
+
+`build.zig`:
+```zig
+const build_options = b.addOptions();
+
+exe.root_module.addOptions("build_options", build_options);
+build_options.addOption([]const u8, "head_hash", try hash());
+
+inline fn hash() ![]const u8 {
+    const gxt = @import("ghext").Ghext.read(std.heap.page_allocator) catch unreachable;
+    return gxt.hash;
+}
+```
+
+`app.zig`:
+```zig
+const build_opt = @import("build_options");
+const hash = build_opt.head_hash[0..7];
 ```
 
 ## Documentation
