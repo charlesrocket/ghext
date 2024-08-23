@@ -1,5 +1,5 @@
 const std = @import("std");
-pub const Ghext = @import("src/root.zig");
+pub const Ghext = @import("src/ghext.zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
