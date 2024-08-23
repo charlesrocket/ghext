@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2024-08-23
+
+### Documentation
+
+- Add example
+- Use `hash_short`
+- Update description
+- Add build system setup
+- Update ghext commit
+- Add build system usage
+
+### Features
+
+- Expose `Ghext` for build system usage
+
 ## [0.3.0] - 2024-08-04
 
 ### Bug Fixes
