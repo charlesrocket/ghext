@@ -4,7 +4,7 @@ pub const Ghext = @import("src/ghext.zig");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const root_source_file = b.path("src/root.zig");
+    const root_source_file = b.path("src/ghext.zig");
 
     _ = b.addModule("ghext", .{ .root_source_file = root_source_file });
 
