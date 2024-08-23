@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     _ = b.addModule("ghext", .{ .root_source_file = root_source_file });
 
     const lib = b.addStaticLibrary(.{
-        .name = "ghext",
+        .name = "Ghext",
         .root_source_file = b.path("src/ghext.zig"),
         .target = target,
         .optimize = optimize,
