@@ -8,17 +8,14 @@ pub fn build(b: *std.Build) void {
 
     _ = b.addModule("ghext", .{ .root_source_file = root_source_file });
 
-    const lib_step = b.step("lib", "Install library");
     const lib = b.addStaticLibrary(.{
-        .name = "Ghext",
+        .name = "ghext",
+        .root_source_file = b.path("src/ghext.zig"),
         .target = target,
         .optimize = optimize,
-        .root_source_file = root_source_file,
     });
 
-    const lib_install = b.addInstallArtifact(lib, .{});
-    lib_step.dependOn(&lib_install.step);
-    b.default_step.dependOn(lib_step);
+    b.installArtifact(lib);
 
     const unit_tests = b.addTest(.{
         .root_source_file = root_source_file,
@@ -31,14 +28,13 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_unit_tests.step);
 
     const docs_step = b.step("docs", "Generate documentation");
-    const docs_install = b.addInstallDirectory(.{
+    const docs = lib.getEmittedDocs();
+
+    docs_step.dependOn(&b.addInstallDirectory(.{
+        .source_dir = docs,
         .install_dir = .prefix,
         .install_subdir = "doc",
-        .source_dir = lib.getEmittedDocs(),
-    });
-
-    docs_step.dependOn(&docs_install.step);
-    b.default_step.dependOn(docs_step);
+    }).step);
 
     const kcov = b.addSystemCommand(&.{ "kcov", "kcov-out", "--include-path=src" });
     kcov.addArtifactArg(unit_tests);
