@@ -27,9 +27,15 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    const docs_step = b.step("docs", "Generate documentation");
-    const docs = lib.getEmittedDocs();
+    const lib_docs = b.addStaticLibrary(.{
+        .name = "docs",
+        .root_source_file = root_source_file,
+        .target = target,
+        .optimize = optimize,
+    });
 
+    const docs_step = b.step("docs", "Generate documentation");
+    const docs = lib_docs.getEmittedDocs();
     docs_step.dependOn(&b.addInstallDirectory(.{
         .source_dir = docs,
         .install_dir = .prefix,
