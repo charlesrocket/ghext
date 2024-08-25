@@ -106,10 +106,12 @@ pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
 }
 
 fn gitInstalled(allocator: mem.Allocator) !bool {
-    const proc = try process.Child.run(.{
+    const proc = process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "--version" },
-    });
+    }) catch {
+        return false;
+    };
 
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
