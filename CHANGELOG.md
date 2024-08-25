@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2024-08-25
+
+### Bug Fixes
+
+- Update `root_source_file`
+- Update `docs` step
+- Correct library name
+
+### Refactor
+
+- Move source struct
+
+### Build
+
+- Fix `docs` step
+
 ## [0.4.0] - 2024-08-23
 
 ### Documentation
