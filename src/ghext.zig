@@ -78,7 +78,7 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
 
 /// Creates `Ghext` instance using specified allocator and reads the state of the repository.
 pub fn read(allocator: mem.Allocator) !Ghext {
-    const git = try gitInstalled(allocator);
+    const git = gitInstalled(allocator);
     var dirty: bool = false;
     var arr = std.ArrayList(u8).init(allocator);
     defer arr.deinit();
@@ -105,7 +105,7 @@ pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
     allocator.free(self.hash);
 }
 
-fn gitInstalled(allocator: mem.Allocator) !bool {
+fn gitInstalled(allocator: mem.Allocator) bool {
     const proc = process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "--version" },
