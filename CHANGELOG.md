@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2024-08-27
+
+### Bug Fixes
+
+- Catch binary check errors
+- [**breaking**] Make `dirty` optional
+
+### Features
+
+- [**breaking**] Add binary/fs errors
+
+### Refactor
+
+- Drop `gitInstalled()` error
+- Reformat `sha.len` switch
+
 ## [0.4.1] - 2024-08-25
 
 ### Bug Fixes
