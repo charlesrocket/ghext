@@ -141,9 +141,7 @@ fn gitInstalled(allocator: mem.Allocator) bool {
 
 fn isValid(sha: []const u8) bool {
     switch (sha.len) {
-        20 => {},
-        40 => {},
-        64 => {},
+        20, 40, 64 => {},
         else => {
             return false;
         },
