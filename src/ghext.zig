@@ -26,7 +26,7 @@ pub const Error = error{
 /// HEAD commit hash.
 hash: []const u8,
 /// State (requires `git` binary in the `$PATH`).
-dirty: bool = false,
+dirty: ?bool = null,
 /// `git` binary detection.
 binary: bool,
 
@@ -95,7 +95,7 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
 /// Creates `Ghext` instance using specified allocator and reads the state of the repository.
 pub fn read(allocator: mem.Allocator) !Ghext {
     const git = gitInstalled(allocator);
-    var dirty: bool = false;
+    var dirty: ?bool = null;
     var arr = std.ArrayList(u8).init(allocator);
     defer arr.deinit();
 
