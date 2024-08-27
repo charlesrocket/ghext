@@ -11,8 +11,16 @@ const PATH: []const u8 = ".git/HEAD";
 
 /// Possible error types.
 pub const Error = error{
-    InvalidHash,
+    /// Failed to read branch file.
+    BranchError,
+    /// Failed to read `HEAD` file.
     ReadFailed,
+    /// Invalid hash received.
+    InvalidHash,
+    /// Process failure.
+    ProcFailed,
+    /// Git binary failure.
+    GitError,
 };
 
 /// HEAD commit hash.
@@ -23,10 +31,12 @@ dirty: bool = false,
 binary: bool,
 
 fn getState(allocator: mem.Allocator) !bool {
-    const proc = try process.Child.run(.{
+    const proc = process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "diff-index", "--quiet", "HEAD", "--" },
-    });
+    }) catch {
+        return Error.ProcFailed;
+    };
 
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
@@ -39,10 +49,12 @@ fn getState(allocator: mem.Allocator) !bool {
 }
 
 fn readWithGit(allocator: mem.Allocator, arr: *std.ArrayListAligned(u8, null)) anyerror!void {
-    const proc = try process.Child.run(.{
+    const proc = process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "rev-parse", "HEAD" },
-    });
+    }) catch {
+        return Error.ProcFailed;
+    };
 
     if (proc.term.Exited == 0) {
         const hash = mem.trimRight(u8, proc.stdout, "\n");
@@ -53,20 +65,24 @@ fn readWithGit(allocator: mem.Allocator, arr: *std.ArrayListAligned(u8, null)) a
     defer allocator.free(proc.stderr);
 
     if (proc.term.Exited > 0) {
-        return Error.ReadFailed;
+        return Error.GitError;
     }
 }
 
 fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     var buffer: [1024]u8 = undefined;
     var hash: []const u8 = undefined;
-    const file = try fs.cwd().readFile(PATH, &buffer);
+    const file = fs.cwd().readFile(PATH, &buffer) catch {
+        return Error.ReadFailed;
+    };
 
     if (ascii.startsWithIgnoreCase(file, "ref: ")) {
         _ = @memcpy(file[0..5], ".git/");
 
         const branch = mem.trimRight(u8, file, "\n");
-        const hash_tmp = try fs.cwd().readFile(branch, &buffer);
+        const hash_tmp = fs.cwd().readFile(branch, &buffer) catch {
+            return Error.BranchError;
+        };
 
         hash = mem.trimRight(u8, hash_tmp, "\n");
         try arr.appendSlice(hash);
