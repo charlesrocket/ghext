@@ -42,7 +42,12 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "doc",
     }).step);
 
-    const kcov = b.addSystemCommand(&.{ "kcov", "kcov-out", "--include-path=src" });
+    const kcov = b.addSystemCommand(&.{
+        "kcov",
+        "kcov-out",
+        "--include-path=src",
+    });
+
     kcov.addArtifactArg(unit_tests);
 
     const coverage_step = b.step("coverage", "Generate test coverage (kcov)");
