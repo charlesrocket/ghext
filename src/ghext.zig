@@ -33,7 +33,13 @@ binary: bool,
 fn getState(allocator: mem.Allocator) !bool {
     const proc = process.Child.run(.{
         .allocator = allocator,
-        .argv = &.{ "git", "diff-index", "--quiet", "HEAD", "--" },
+        .argv = &.{
+            "git",
+            "diff-index",
+            "--quiet",
+            "HEAD",
+            "--",
+        },
     }) catch {
         return Error.ProcFailed;
     };
@@ -48,10 +54,17 @@ fn getState(allocator: mem.Allocator) !bool {
     }
 }
 
-fn readWithGit(allocator: mem.Allocator, arr: *std.ArrayListAligned(u8, null)) anyerror!void {
+fn readWithGit(
+    allocator: mem.Allocator,
+    arr: *std.ArrayListAligned(u8, null),
+) anyerror!void {
     const proc = process.Child.run(.{
         .allocator = allocator,
-        .argv = &.{ "git", "rev-parse", "HEAD" },
+        .argv = &.{
+            "git",
+            "rev-parse",
+            "HEAD",
+        },
     }) catch {
         return Error.ProcFailed;
     };
@@ -72,6 +85,7 @@ fn readWithGit(allocator: mem.Allocator, arr: *std.ArrayListAligned(u8, null)) a
 fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     var buffer: [1024]u8 = undefined;
     var hash: []const u8 = undefined;
+
     const file = fs.cwd().readFile(PATH, &buffer) catch {
         return Error.ReadFailed;
     };
@@ -92,7 +106,8 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     }
 }
 
-/// Creates `Ghext` instance using specified allocator and reads the state of the repository.
+/// Creates `Ghext` instance using specified allocator and reads
+/// the state of the repository.
 pub fn read(allocator: mem.Allocator) !Ghext {
     const git = gitInstalled(allocator);
     var dirty: ?bool = null;
@@ -101,7 +116,6 @@ pub fn read(allocator: mem.Allocator) !Ghext {
 
     if (git) {
         dirty = try getState(allocator);
-
         _ = try readWithGit(allocator, &arr);
     } else {
         _ = try readWithoutGit(&arr);
@@ -113,7 +127,11 @@ pub fn read(allocator: mem.Allocator) !Ghext {
         return Error.InvalidHash;
     }
 
-    return .{ .binary = git, .hash = hash, .dirty = dirty };
+    return .{
+        .binary = git,
+        .hash = hash,
+        .dirty = dirty,
+    };
 }
 
 /// Releases allocated memory.
