@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-04-19
+
+### Bug Fixes
+
+- Update name value
+
+### Miscellaneous tasks
+
+- Update LICENSE
+
+### Operations
+
+- Bump codecov/codecov-action from 4 to 5
+- Run coverage in jammy
+- Bump zig version to 0.14
+
+### Styling
+
+- Reformat root file
+- Reformat build file
+
+### Build
+
+- Set minimum zig version
+- Add fingerprint
+- Bump version to 0.5.1
+
 ## [0.5.0] - 2024-08-27
 
 ### Bug Fixes
