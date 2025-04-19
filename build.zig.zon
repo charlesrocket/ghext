@@ -2,6 +2,7 @@
     .name = "ghext",
     .version = "0.5.0",
     .minimum_zig_version = "0.14.0",
+    .fingerprint = 0xed30ccbc171b7ab7,
 
     .dependencies = .{},
 
