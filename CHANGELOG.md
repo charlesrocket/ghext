@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2025-05-24
+
+### Documentation
+
+- Update README
+- Add example
+
+### Features
+
+- [**breaking**] Add `hash_short()`
+
+### Refactor
+
+- [**breaking**] `read()` -> `init()`
+
 ## [0.5.1] - 2025-04-19
 
 ### Bug Fixes
