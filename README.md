@@ -19,6 +19,8 @@ Extract the hashes of last commits from `git` repositories with `ghext`. Support
 > [!NOTE]
 > `git` binary is not required.
 
+[Example](https://github.com/charlesrocket/xtxf/blob/trunk/build.zig)
+
 ### Standard
 
 `build.zig`:
