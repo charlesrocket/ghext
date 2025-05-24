@@ -35,10 +35,12 @@ exe.root_module.addImport("ghext", ghext);
 `app.zig`:
 ```zig
 const Ghext = @import("ghext");
-var gxt = try Ghext.read(allocator);
+const Worktree = Ghext.Worktree;
+
+var gxt = try Ghext.init(allocator);
 defer gxt.deinit(allocator);
 
-const hash_short = gxt.hash[0..7];
+const hash = gxt.hash_short(Worktree.Checked);
 ```
 
 ### Build system
@@ -51,7 +53,7 @@ exe.root_module.addOptions("build_options", build_options);
 build_options.addOption([]const u8, "head_hash", try hash());
 
 inline fn hash() ![]const u8 {
-    const gxt = @import("ghext").Ghext.read(std.heap.page_allocator) catch unreachable;
+    const gxt = @import("ghext").Ghext.init(std.heap.page_allocator) catch unreachable;
     return gxt.hash;
 }
 ```
