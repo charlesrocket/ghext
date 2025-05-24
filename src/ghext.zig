@@ -1,13 +1,12 @@
 //! Extract HEAD hashes from `git` repositories.
 
-const std = @import("std");
-const fs = std.fs;
-const ascii = std.ascii;
-const process = std.process;
-const mem = std.mem;
-
-const Ghext = @This();
 const PATH: []const u8 = ".git/HEAD";
+
+/// Working tree state check.
+pub const Worktree = enum {
+    Checked,
+    Unchecked,
+};
 
 /// Possible error types.
 pub const Error = error{
@@ -25,7 +24,7 @@ pub const Error = error{
 
 /// HEAD commit hash.
 hash: []const u8,
-/// State (requires `git` binary in the `$PATH`).
+/// Working tree state (requires `git` binary in the `$PATH`).
 dirty: ?bool = null,
 /// `git` binary detection.
 binary: bool,
@@ -134,6 +133,26 @@ pub fn init(allocator: mem.Allocator) !Ghext {
     };
 }
 
+/// Returns a short hash with an optional working tree state.
+pub fn hash_short(self: *Ghext, check: Worktree) []const u8 {
+    const hash = self.hash[0..7];
+
+    switch (check) {
+        .Checked => {
+            const checked = if (self.dirty == null)
+                hash ++ "-unverified"
+            else switch (self.dirty.?) {
+                true => hash ++ "-dirty",
+                false => hash,
+            };
+            return checked;
+        },
+        .Unchecked => {
+            return hash;
+        },
+    }
+}
+
 /// Releases allocated memory.
 pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
     allocator.free(self.hash);
@@ -181,6 +200,15 @@ test init {
     try std.testing.expect(ghx.hash.len == 40);
 }
 
+test hash_short {
+    var ghx = try Ghext.init(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
+
+    const hash = ghx.hash_short(Worktree.Unchecked);
+
+    try std.testing.expect(hash.len == 7);
+}
+
 test "read (git)" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
@@ -212,3 +240,11 @@ test "validation" {
     try std.testing.expect(!isValid(invalid_a));
     try std.testing.expect(!isValid(invalid_b));
 }
+
+const Ghext = @This();
+
+const std = @import("std");
+const fs = std.fs;
+const ascii = std.ascii;
+const process = std.process;
+const mem = std.mem;
