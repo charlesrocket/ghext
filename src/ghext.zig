@@ -178,19 +178,19 @@ fn gitInstalled(allocator: mem.Allocator) bool {
 
 fn isValid(sha: []const u8) bool {
     switch (sha.len) {
-        20, 40, 64 => {},
+        20, 40, 64 => {
+            for (sha[0..]) |byte| {
+                if (!ascii.isHex(byte)) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
         else => {
             return false;
         },
     }
-
-    for (sha[0..]) |byte| {
-        if (!ascii.isHex(byte)) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 test init {
