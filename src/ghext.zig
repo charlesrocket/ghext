@@ -8,6 +8,11 @@ pub const Worktree = enum {
     Unchecked,
 };
 
+pub const HashLen = enum {
+    Short,
+    Long,
+};
+
 /// Possible error types.
 pub const Error = error{
     /// Failed to read branch file.
@@ -23,7 +28,7 @@ pub const Error = error{
 };
 
 /// HEAD commit hash.
-hash: []const u8,
+head: []const u8,
 /// Working tree state (requires `git` binary in the `$PATH`).
 dirty: ?bool = null,
 /// `git` binary detection.
@@ -69,8 +74,8 @@ fn readWithGit(
     };
 
     if (proc.term.Exited == 0) {
-        const hash = mem.trimRight(u8, proc.stdout, "\n");
-        try arr.appendSlice(hash);
+        const head = mem.trimRight(u8, proc.stdout, "\n");
+        try arr.appendSlice(head);
     }
 
     defer allocator.free(proc.stdout);
@@ -83,7 +88,7 @@ fn readWithGit(
 
 fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     var buffer: [1024]u8 = undefined;
-    var hash: []const u8 = undefined;
+    var head: []const u8 = undefined;
 
     const file = fs.cwd().readFile(PATH, &buffer) catch {
         return Error.ReadFailed;
@@ -97,11 +102,11 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
             return Error.BranchError;
         };
 
-        hash = mem.trimRight(u8, hash_tmp, "\n");
-        try arr.appendSlice(hash);
+        head = mem.trimRight(u8, hash_tmp, "\n");
+        try arr.appendSlice(head);
     } else {
-        hash = mem.trimRight(u8, file, "\n");
-        try arr.appendSlice(hash);
+        head = mem.trimRight(u8, file, "\n");
+        try arr.appendSlice(head);
     }
 }
 
@@ -120,42 +125,50 @@ pub fn init(allocator: mem.Allocator) !Ghext {
         _ = try readWithoutGit(&arr);
     }
 
-    const hash = try arr.toOwnedSlice();
+    const head = try arr.toOwnedSlice();
 
-    if (!isValid(hash)) {
+    if (!isValid(head)) {
         return Error.InvalidHash;
     }
 
     return .{
         .binary = git,
-        .hash = hash,
+        .head = head,
         .dirty = dirty,
     };
 }
 
-/// Returns a short hash with an optional working tree state.
-pub fn hash_short(self: *Ghext, check: Worktree) []const u8 {
-    const hash = self.hash[0..7];
+/// Returns a short or long HEAD hash with an optional working tree state.
+pub inline fn hash(
+    self: *Ghext,
+    comptime length: HashLen,
+    check: Worktree,
+) []const u8 {
+    const head = switch (length) {
+        .Short => self.head[0..7],
+        .Long => self.head,
+    };
 
     switch (check) {
         .Checked => {
             const checked = if (self.dirty == null)
-                hash ++ "-unverified"
+                head ++ "-unverified"
             else switch (self.dirty.?) {
-                true => hash ++ "-dirty",
-                false => hash,
+                true => head ++ "-dirty",
+                false => head,
             };
+
             return checked;
         },
         .Unchecked => {
-            return hash;
+            return head;
         },
     }
 }
 
 /// Releases allocated memory.
 pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
-    allocator.free(self.hash);
+    allocator.free(self.head);
 }
 
 fn gitInstalled(allocator: mem.Allocator) bool {
@@ -197,16 +210,25 @@ test init {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    try std.testing.expect(ghx.hash.len == 40);
+    try std.testing.expect(ghx.head.len == 40);
 }
 
-test hash_short {
+test "hash_short" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    const hash = ghx.hash_short(Worktree.Unchecked);
+    const head = ghx.hash(HashLen.Short, Worktree.Unchecked);
 
-    try std.testing.expect(hash.len == 7);
+    try std.testing.expect(head.len == 7);
+}
+
+test "hash_long" {
+    var ghx = try Ghext.init(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
+
+    const head = ghx.hash(HashLen.Long, Worktree.Unchecked);
+
+    try std.testing.expect(head.len == 40);
 }
 
 test "read (git)" {
