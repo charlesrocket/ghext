@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2025-05-28
+
+### Documentation
+
+- Update installation
+- Update usage
+- Update returned value
+
+### Features
+
+- [**breaking**] Improve hash getter
+
+### Refactor
+
+- Move validation subroutine
+
 ## [0.5.2] - 2025-05-24
 
 ### Documentation
