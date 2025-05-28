@@ -57,7 +57,7 @@ fn hash() ![]const u8 {
     const gxt = @import("ghext").Ghext.init(std.heap.page_allocator) catch
         unreachable;
 
-    return gxt.hash;
+    return gxt.head;
 }
 ```
 
