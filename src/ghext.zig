@@ -140,6 +140,11 @@ pub fn init(allocator: mem.Allocator) !Ghext {
     };
 }
 
+/// Releases allocated memory.
+pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
+    allocator.free(self.head);
+}
+
 /// Returns a short or long HEAD hash with an optional working tree state.
 pub inline fn hash(
     self: *Ghext,
@@ -172,11 +177,6 @@ pub inline fn hash(
             return arr.slice();
         },
     }
-}
-
-/// Releases allocated memory.
-pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
-    allocator.free(self.head);
 }
 
 fn gitInstalled(allocator: mem.Allocator) bool {
