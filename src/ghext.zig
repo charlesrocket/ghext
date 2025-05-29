@@ -253,7 +253,7 @@ test "hash_long_checked" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    ghx.state = State.Unknown;
+    ghx.state = .Unknown;
     const head = ghx.hash(HashLen.Long, Worktree.Checked);
 
     try std.testing.expect(head.len == 51);
@@ -263,7 +263,7 @@ test "hash_dirty" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    ghx.state = State.Dirty;
+    ghx.state = .Dirty;
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
     try std.testing.expect(head.len == 13);
