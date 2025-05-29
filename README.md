@@ -52,23 +52,23 @@ pub fn main() !void {
 
 `build.zig`:
 ```zig
+const Ghext = @import("ghext").Ghext;
 const build_options = b.addOptions();
 
 exe.root_module.addOptions("build_options", build_options);
-build_options.addOption([]const u8, "head_hash", try hash());
+build_options.addOption([]const u8, "head_hash", hash());
 
-fn hash() ![]const u8 {
-    const gxt = @import("ghext").Ghext.init(std.heap.page_allocator) catch
-        unreachable;
-
-    return gxt.head;
+fn hash(b: *std.Build) []const u8 {
+    var gxt = Ghext.init(std.heap.page_allocator) catch unreachable;
+    const hash = gxt.hash(Ghext.HashLen.Short, Ghext.Worktree.Checked);
+    return hash;
 }
 ```
 
 `app.zig`:
 ```zig
 const build_opt = @import("build_options");
-const hash = build_opt.head_hash[0..7];
+const hash = build_opt.head_hash;
 ```
 
 ## Documentation
