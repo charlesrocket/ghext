@@ -38,10 +38,14 @@ exe.root_module.addImport("ghext", ghext);
 ```zig
 const Ghext = @import("ghext");
 
-var gxt = try Ghext.init(allocator);
-defer gxt.deinit(allocator);
+pub fn main() !void {
+    var gpallocator = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpallocator.deinit();
 
-const hash = gxt.hash(Ghext.HashLen.Short, Ghext.Worktree.Checked);
+    var gxt = try Ghext.init(gpallocator.allocator());
+    defer gxt.deinit(gpallocator.allocator());
+
+    const hash = gxt.hash(Ghext.HashLen.Short, Ghext.Worktree.Checked);
 ```
 
 ### Build system
