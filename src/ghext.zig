@@ -257,6 +257,16 @@ test "hash_long_checked" {
     try std.testing.expect(head.len == 51);
 }
 
+test "hash_dirty" {
+    var ghx = try Ghext.init(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
+
+    ghx.dirty = true;
+    const head = ghx.hash(HashLen.Short, Worktree.Checked);
+
+    try std.testing.expect(head.len == 13);
+}
+
 test "read (git)" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
