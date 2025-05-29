@@ -1,6 +1,12 @@
 //! Extract HEAD hashes from `git` repositories.
 
 const PATH: []const u8 = ".git/HEAD";
+const State = enum {
+    Dirty,
+    Clean,
+    Unknown,
+    None,
+};
 
 /// Working tree state check.
 pub const Worktree = enum {
@@ -17,12 +23,8 @@ pub const HashLen = enum {
 pub const Error = error{
     /// Failed to read branch file.
     BranchError,
-    /// Failed to read `HEAD` file.
-    ReadFailed,
     /// Invalid hash received.
     InvalidHash,
-    /// Process failure.
-    ProcFailed,
     /// Git binary failure.
     GitError,
 };
@@ -30,11 +32,11 @@ pub const Error = error{
 /// HEAD commit hash.
 head: []const u8,
 /// Working tree state (requires `git` binary in the `$PATH`).
-dirty: ?bool = null,
+state: State,
 /// `git` binary detection.
 binary: bool,
 
-fn getState(allocator: mem.Allocator) !bool {
+fn getState(allocator: mem.Allocator) State {
     const proc = process.Child.run(.{
         .allocator = allocator,
         .argv = &.{
@@ -45,16 +47,16 @@ fn getState(allocator: mem.Allocator) !bool {
             "--",
         },
     }) catch {
-        return Error.ProcFailed;
+        return State.Unknown;
     };
 
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
     if (proc.term.Exited == 1) {
-        return true;
+        return State.Dirty;
     } else {
-        return false;
+        return State.Clean;
     }
 }
 
@@ -70,7 +72,7 @@ fn readWithGit(
             "HEAD",
         },
     }) catch {
-        return Error.ProcFailed;
+        return;
     };
 
     if (proc.term.Exited == 0) {
@@ -91,7 +93,7 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     var head: []const u8 = undefined;
 
     const file = fs.cwd().readFile(PATH, &buffer) catch {
-        return Error.ReadFailed;
+        return;
     };
 
     if (ascii.startsWithIgnoreCase(file, "ref: ")) {
@@ -114,12 +116,12 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
 /// the state of the repository.
 pub fn init(allocator: mem.Allocator) !Ghext {
     const git = gitInstalled(allocator);
-    var dirty: ?bool = null;
+    var repo_state: State = .None;
     var arr = std.ArrayList(u8).init(allocator);
     defer arr.deinit();
 
     if (git) {
-        dirty = try getState(allocator);
+        repo_state = getState(allocator);
         _ = try readWithGit(allocator, &arr);
     } else {
         _ = try readWithoutGit(&arr);
@@ -134,7 +136,7 @@ pub fn init(allocator: mem.Allocator) !Ghext {
     return .{
         .binary = git,
         .head = head,
-        .dirty = dirty,
+        .state = repo_state,
     };
 }
 
@@ -156,11 +158,11 @@ pub inline fn hash(
 
     switch (check) {
         .Checked => {
-            if (self.dirty == null) {
-                arr.appendSlice("-unverified") catch
+            if (self.state == .Dirty) {
+                arr.appendSlice("-dirty") catch
                     return arr.slice();
-            } else {
-                if (self.dirty.?) arr.appendSlice("-dirty") catch
+            } else if (self.state == .Unknown) {
+                arr.appendSlice("-unverified") catch
                     return arr.slice();
             }
 
@@ -232,7 +234,7 @@ test "hash_short_checked" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    ghx.dirty = null;
+    ghx.state = .Unknown;
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
     try std.testing.expect(head.len == 18);
@@ -251,7 +253,7 @@ test "hash_long_checked" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    ghx.dirty = null;
+    ghx.state = State.Unknown;
     const head = ghx.hash(HashLen.Long, Worktree.Checked);
 
     try std.testing.expect(head.len == 51);
@@ -261,7 +263,7 @@ test "hash_dirty" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
-    ghx.dirty = true;
+    ghx.state = State.Dirty;
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
     try std.testing.expect(head.len == 13);
