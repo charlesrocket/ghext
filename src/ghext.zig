@@ -221,7 +221,7 @@ test init {
     try std.testing.expect(ghx.head.len == 40);
 }
 
-test "hash_short" {
+test "hash short" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
@@ -230,7 +230,7 @@ test "hash_short" {
     try std.testing.expect(head.len == 7);
 }
 
-test "hash_short_checked" {
+test "hash short (checked)" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
@@ -240,7 +240,7 @@ test "hash_short_checked" {
     try std.testing.expect(head.len == 18);
 }
 
-test "hash_long" {
+test "hash long" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
@@ -249,7 +249,7 @@ test "hash_long" {
     try std.testing.expect(head.len == 40);
 }
 
-test "hash_long_checked" {
+test "hash long (checked)" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
@@ -259,7 +259,7 @@ test "hash_long_checked" {
     try std.testing.expect(head.len == 51);
 }
 
-test "hash_dirty" {
+test "hash dirty" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
