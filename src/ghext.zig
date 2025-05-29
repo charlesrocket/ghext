@@ -144,24 +144,30 @@ pub inline fn hash(
     comptime length: HashLen,
     check: Worktree,
 ) []const u8 {
-    const head = switch (length) {
+    var arr = std.BoundedArray(u8, 80).init(0) catch return switch (length) {
         .Short => self.head[0..7],
         .Long => self.head,
     };
 
+    switch (length) {
+        .Short => arr.appendSlice(self.head[0..7]) catch return self.head[0..7],
+        .Long => arr.appendSlice(self.head) catch return self.head,
+    }
+
     switch (check) {
         .Checked => {
-            const checked = if (self.dirty == null)
-                head ++ "-unverified"
-            else switch (self.dirty.?) {
-                true => head ++ "-dirty",
-                false => head,
-            };
+            if (self.dirty == null) {
+                arr.appendSlice("-unverified") catch
+                    return arr.slice();
+            } else {
+                if (self.dirty.?) arr.appendSlice("-dirty") catch
+                    return arr.slice();
+            }
 
-            return checked;
+            return arr.slice();
         },
         .Unchecked => {
-            return head;
+            return arr.slice();
         },
     }
 }
@@ -222,6 +228,16 @@ test "hash_short" {
     try std.testing.expect(head.len == 7);
 }
 
+test "hash_short_checked" {
+    var ghx = try Ghext.init(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
+
+    ghx.dirty = null;
+    const head = ghx.hash(HashLen.Short, Worktree.Checked);
+
+    try std.testing.expect(head.len == 18);
+}
+
 test "hash_long" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
@@ -229,6 +245,16 @@ test "hash_long" {
     const head = ghx.hash(HashLen.Long, Worktree.Unchecked);
 
     try std.testing.expect(head.len == 40);
+}
+
+test "hash_long_checked" {
+    var ghx = try Ghext.init(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
+
+    ghx.dirty = null;
+    const head = ghx.hash(HashLen.Long, Worktree.Checked);
+
+    try std.testing.expect(head.len == 51);
 }
 
 test "read (git)" {
