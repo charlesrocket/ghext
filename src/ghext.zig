@@ -149,22 +149,17 @@ pub inline fn hash(
         .Long => arr.appendSlice(self.head) catch return self.head,
     }
 
-    switch (check) {
-        .Checked => {
-            if (self.state == .Dirty) {
-                arr.appendSlice("-dirty") catch
-                    return arr.slice();
-            } else if (self.state == .Unknown) {
-                arr.appendSlice("-unverified") catch
-                    return arr.slice();
-            }
-
-            return arr.slice();
-        },
-        .Unchecked => {
-            return arr.slice();
-        },
+    if (check == .Checked) {
+        if (self.state == .Dirty) {
+            arr.appendSlice("-dirty") catch
+                return arr.slice();
+        } else if (self.state == .Unknown) {
+            arr.appendSlice("-unverified") catch
+                return arr.slice();
+        }
     }
+
+    return arr.slice();
 }
 
 fn gitInstalled(allocator: mem.Allocator) bool {
