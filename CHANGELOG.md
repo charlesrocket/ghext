@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2025-05-30
+
+### Bug Fixes
+
+- Use `BoundedArray`
+- Improve error handling
+
+### Documentation
+
+- Update installation
+- Update app usage
+- Update build usage
+- Drop standard usage
+- Comment `HashLen`
+- Update example
+- Fix manifest example
+
+### Features
+
+- [**breaking**] Add `state`
+- Expose `PATH`
+- Add `GIT` switch
+
+### Refactor
+
+- Optimize `hash()`
+
+### Styling
+
+- Move `deinit()`
+
+### Testing
+
+- Add `hash_dirty`
+- Fix `ghx.state` definitions
+- Rename cases
+
+### Build
+
+- Update `paths`
+
 ## [0.6.0] - 2025-05-28
 
 ### Documentation
