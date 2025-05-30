@@ -51,8 +51,6 @@ const manifest: struct {
     paths: []const []const u8,
     minimum_zig_version: []const u8,
     dependencies: struct {
-        termbox2: Dependency,
-        cova: Dependency,
         ghext: Dependency,
     },
 } = @import("build.zig.zon");
