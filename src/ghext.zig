@@ -21,6 +21,8 @@ pub const HashLen = enum {
 
 /// Location of the HEAD file.
 pub var PATH: []const u8 = ".git/HEAD";
+/// Git executable usage toggle.
+pub var GIT: bool = true;
 
 /// HEAD commit hash.
 head: []const u8,
@@ -79,55 +81,51 @@ fn readWithGit(
     }
 }
 
-fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) void {
+fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
 
-    const file = fs.cwd().readFile(PATH, &buffer) catch {
-        return;
-    };
+    const file = try fs.cwd().readFile(PATH, &buffer);
 
     if (ascii.startsWithIgnoreCase(file, "ref: ")) {
         _ = @memcpy(file[0..5], ".git/");
 
         const branch = mem.trimRight(u8, file, "\n");
-        const hash_tmp = fs.cwd().readFile(branch, &buffer) catch {
-            @panic("Failed to read HEAD file");
-        };
+        const hash_tmp = try fs.cwd().readFile(branch, &buffer);
 
         head = mem.trimRight(u8, hash_tmp, "\n");
     } else {
         head = mem.trimRight(u8, file, "\n");
     }
 
-    arr.appendSlice(head) catch @panic("Cannot append HEAD hash");
+    try arr.appendSlice(head);
 }
 
 /// Creates `Ghext` instance using specified allocator and reads
 /// the state of the repository.
 pub fn init(allocator: mem.Allocator) !Ghext {
-    const git = gitInstalled(allocator);
-    var repo_state: State = .None;
+    const binary = gitInstalled(allocator);
+    var state: State = .None;
     var arr = std.ArrayList(u8).init(allocator);
     defer arr.deinit();
 
-    if (git) {
-        repo_state = getState(allocator);
-        readWithGit(allocator, &arr) catch readWithoutGit(&arr);
+    if (GIT and binary) {
+        state = getState(allocator);
+        readWithGit(allocator, &arr) catch try readWithoutGit(&arr);
     } else {
-        readWithoutGit(&arr);
+        try readWithoutGit(&arr);
     }
 
     const head = try arr.toOwnedSlice();
 
     if (!isValid(head)) {
-        @panic("Invalid HEAD hash");
+        return error.InvalidHeadHash;
     }
 
     return .{
-        .binary = git,
+        .binary = binary,
         .head = head,
-        .state = repo_state,
+        .state = state,
     };
 }
 
@@ -268,9 +266,19 @@ test "read (no git)" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
 
-    readWithoutGit(&sha);
+    try readWithoutGit(&sha);
 
     try std.testing.expect(sha.items.len == 40);
+}
+
+test "head file missing" {
+    PATH = "foo";
+    GIT = false;
+
+    try std.testing.expectError(
+        error.FileNotFound,
+        Ghext.init(std.testing.allocator),
+    );
 }
 
 test "validation" {
