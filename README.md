@@ -2,7 +2,7 @@
 [![CI](https://github.com/charlesrocket/ghext/actions/workflows/ci.yml/badge.svg?branch=trunk)](https://github.com/charlesrocket/ghext/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/charlesrocket/ghext/branch/trunk/graph/badge.svg)](https://codecov.io/gh/charlesrocket/ghext)
 
-Extract the hashes of last commits from `git` repositories with `ghext`. Supports standard and `build.zig` imports without requiring any dependencies.
+Extract the hashes of last commits from `git` repositories with `ghext`.
 
 ## Installation
 
@@ -21,33 +21,6 @@ Extract the hashes of last commits from `git` repositories with `ghext`. Support
 
 [Example](https://github.com/charlesrocket/xtxf/blob/trunk/build.zig)
 
-### Standard
-
-`build.zig`:
-```zig
-const ghext_dep = b.dependency("ghext", .{
-    .target = target,
-    .optimize = optimize,
-});
-
-const ghext = ghext_dep.module("ghext");
-exe.root_module.addImport("ghext", ghext);
-```
-
-`app.zig`:
-```zig
-const Ghext = @import("ghext");
-
-pub fn main() !void {
-    var gpallocator = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpallocator.deinit();
-
-    var gxt = try Ghext.init(gpallocator.allocator());
-    defer gxt.deinit(gpallocator.allocator());
-
-    const hash = gxt.hash(Ghext.HashLen.Short, Ghext.Worktree.Checked);
-```
-
 ### Build system
 
 `build.zig`:
@@ -58,14 +31,14 @@ const build_options = b.addOptions();
 exe.root_module.addOptions("build_options", build_options);
 build_options.addOption([]const u8, "head_hash", hash());
 
-fn hash(b: *std.Build) []const u8 {
+fn hash() []const u8 {
     var gxt = Ghext.init(std.heap.page_allocator) catch unreachable;
     const hash = gxt.hash(Ghext.HashLen.Short, Ghext.Worktree.Checked);
     return hash;
 }
 ```
 
-`app.zig`:
+`main.zig`:
 ```zig
 const build_opt = @import("build_options");
 const hash = build_opt.head_hash;
