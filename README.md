@@ -29,19 +29,39 @@ const Ghext = @import("ghext").Ghext;
 const build_options = b.addOptions();
 
 exe.root_module.addOptions("build_options", build_options);
-build_options.addOption([]const u8, "head_hash", hash());
+build_options.addOption([]const u8, "version", version(b));
 
-fn hash() []const u8 {
-    var gxt = Ghext.init(std.heap.page_allocator) catch unreachable;
+fn version(b: *std.Build) []const u8 {
+    const semver = manifest.version;
+    var gxt = Ghext.init(std.heap.page_allocator) catch return semver;
     const hash = gxt.hash(Ghext.HashLen.Short, Ghext.Worktree.Checked);
-    return hash;
+    return b.fmt("{s} {s}", .{ semver, hash });
 }
+
+const manifest: struct {
+    const Dependency = struct {
+        url: []const u8,
+        hash: []const u8,
+        lazy: bool = false,
+    };
+
+    name: enum { APPNAME },
+    version: []const u8,
+    fingerprint: u64,
+    paths: []const []const u8,
+    minimum_zig_version: []const u8,
+    dependencies: struct {
+        termbox2: Dependency,
+        cova: Dependency,
+        ghext: Dependency,
+    },
+} = @import("build.zig.zon");
 ```
 
 `main.zig`:
 ```zig
-const build_opt = @import("build_options");
-const hash = build_opt.head_hash;
+const build_options = @import("build_options");
+const VERSION = build_options.version;
 ```
 
 ## Documentation
