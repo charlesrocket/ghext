@@ -19,16 +19,6 @@ pub const HashLen = enum {
     Long,
 };
 
-/// Possible error types.
-pub const Error = error{
-    /// Failed to read branch file.
-    BranchError,
-    /// Invalid hash received.
-    InvalidHash,
-    /// Git binary failure.
-    GitError,
-};
-
 /// HEAD commit hash.
 head: []const u8,
 /// Working tree state (requires `git` binary in the `$PATH`).
@@ -63,17 +53,15 @@ fn getState(allocator: mem.Allocator) State {
 fn readWithGit(
     allocator: mem.Allocator,
     arr: *std.ArrayListAligned(u8, null),
-) anyerror!void {
-    const proc = process.Child.run(.{
+) !void {
+    const proc = try process.Child.run(.{
         .allocator = allocator,
         .argv = &.{
             "git",
             "rev-parse",
             "HEAD",
         },
-    }) catch {
-        return;
-    };
+    });
 
     if (proc.term.Exited == 0) {
         const head = mem.trimRight(u8, proc.stdout, "\n");
@@ -84,11 +72,11 @@ fn readWithGit(
     defer allocator.free(proc.stderr);
 
     if (proc.term.Exited > 0) {
-        return Error.GitError;
+        return error.GitFailure;
     }
 }
 
-fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
+fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) void {
     var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
 
@@ -101,15 +89,15 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
 
         const branch = mem.trimRight(u8, file, "\n");
         const hash_tmp = fs.cwd().readFile(branch, &buffer) catch {
-            return Error.BranchError;
+            @panic("Failed to read HEAD file");
         };
 
         head = mem.trimRight(u8, hash_tmp, "\n");
-        try arr.appendSlice(head);
     } else {
         head = mem.trimRight(u8, file, "\n");
-        try arr.appendSlice(head);
     }
+
+    arr.appendSlice(head) catch @panic("Cannot append HEAD hash");
 }
 
 /// Creates `Ghext` instance using specified allocator and reads
@@ -122,15 +110,15 @@ pub fn init(allocator: mem.Allocator) !Ghext {
 
     if (git) {
         repo_state = getState(allocator);
-        _ = try readWithGit(allocator, &arr);
+        readWithGit(allocator, &arr) catch readWithoutGit(&arr);
     } else {
-        _ = try readWithoutGit(&arr);
+        readWithoutGit(&arr);
     }
 
     const head = try arr.toOwnedSlice();
 
     if (!isValid(head)) {
-        return Error.InvalidHash;
+        @panic("Invalid HEAD hash");
     }
 
     return .{
@@ -148,7 +136,7 @@ pub fn deinit(self: *Ghext, allocator: mem.Allocator) void {
 /// Returns a short or long HEAD hash with an optional working tree state.
 pub inline fn hash(
     self: *Ghext,
-    comptime length: HashLen,
+    length: HashLen,
     check: Worktree,
 ) []const u8 {
     var arr = std.BoundedArray(u8, 80).init(0) catch return switch (length) {
@@ -273,7 +261,7 @@ test "read (git)" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
 
-    _ = try readWithGit(std.testing.allocator, &sha);
+    try readWithGit(std.testing.allocator, &sha);
 
     try std.testing.expect(sha.items.len == 40);
 }
@@ -282,7 +270,7 @@ test "read (no git)" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
 
-    _ = try readWithoutGit(&sha);
+    readWithoutGit(&sha);
 
     try std.testing.expect(sha.items.len == 40);
 }
