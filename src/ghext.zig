@@ -14,6 +14,7 @@ pub const Worktree = enum {
     Unchecked,
 };
 
+/// Length of the HEAD hash.
 pub const HashLen = enum {
     Short,
     Long,
