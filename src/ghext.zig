@@ -1,6 +1,5 @@
 //! Extract HEAD hashes from `git` repositories.
 
-const PATH: []const u8 = ".git/HEAD";
 const State = enum {
     Dirty,
     Clean,
@@ -19,6 +18,9 @@ pub const HashLen = enum {
     Short,
     Long,
 };
+
+/// Location of the HEAD file.
+pub var PATH: []const u8 = ".git/HEAD";
 
 /// HEAD commit hash.
 head: []const u8,
