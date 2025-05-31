@@ -206,7 +206,15 @@ test init {
     try std.testing.expect(ghx.head.len == 40);
 }
 
-test readWithGit {
+test hash {
+    var ghx = try Ghext.init(std.testing.allocator);
+    defer ghx.deinit(std.testing.allocator);
+
+    const short_hash = ghx.hash(HashLen.Short, Worktree.Unchecked);
+    try std.testing.expect(short_hash.len == 7);
+}
+
+test "read" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
 
@@ -215,53 +223,159 @@ test readWithGit {
     try std.testing.expect(sha.items.len == 40);
 }
 
-test readWithoutGit {
+test "read (no git)" {
     var sha = std.ArrayList(u8).init(std.testing.allocator);
     defer sha.deinit();
 
-    PATH = ".git/HEAD";
-
-    try readWithoutGit(&sha);
+    try readWithGit(std.testing.allocator, &sha);
 
     try std.testing.expect(sha.items.len == 40);
 }
 
 test "hash short" {
-    var ghx = try Ghext.init(std.testing.allocator);
-    defer ghx.deinit(std.testing.allocator);
+    const test_file_a = try std.fs.cwd().createFile(
+        "test-short-unchecked",
+        .{ .read = true },
+    );
 
+    const test_file_b = try std.fs.cwd().createFile(
+        "test-short-unchecked-hash",
+        .{ .read = true },
+    );
+
+    try test_file_a.writeAll("ref: short-unchecked-hash");
+    try test_file_b.writeAll("a0f4ea7d91495df92bbac2e2149dfb850fe81396");
+
+    PATH = "test-short-unchecked";
+    PREFIX = "test-";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
     const head = ghx.hash(HashLen.Short, Worktree.Unchecked);
 
-    try std.testing.expect(head.len == 7);
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        std.fs.cwd().deleteFile("test-short-unchecked-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-short-unchecked") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "a0f4ea7",
+        head,
+    ));
 }
 
 test "hash short (checked)" {
-    var ghx = try Ghext.init(std.testing.allocator);
-    defer ghx.deinit(std.testing.allocator);
+    const test_file_a = try std.fs.cwd().createFile(
+        "test-short-checked",
+        .{ .read = true },
+    );
 
+    const test_file_b = try std.fs.cwd().createFile(
+        "test-short-checked-hash",
+        .{ .read = true },
+    );
+
+    try test_file_a.writeAll("ref: short-checked-hash");
+    try test_file_b.writeAll("8b3fe94968382557818350080ad5f1f2510cc5be");
+
+    PATH = "test-short-checked";
+    PREFIX = "test-";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
     ghx.state = .Unknown;
+
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
-    try std.testing.expect(head.len == 18);
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        std.fs.cwd().deleteFile("test-short-checked-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-short-checked") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "8b3fe94-unverified",
+        head,
+    ));
 }
 
 test "hash long" {
-    var ghx = try Ghext.init(std.testing.allocator);
-    defer ghx.deinit(std.testing.allocator);
+    const test_file_a = try std.fs.cwd().createFile(
+        "test-long-unchecked",
+        .{ .read = true },
+    );
 
+    const test_file_b = try std.fs.cwd().createFile(
+        "test-long-unchecked-hash",
+        .{ .read = true },
+    );
+
+    try test_file_a.writeAll("ref: long-unchecked-hash");
+    try test_file_b.writeAll("bd3027fa569ea15ca76d84db21c67e2d514c1a5a");
+
+    PATH = "test-long-unchecked";
+    PREFIX = "test-";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
     const head = ghx.hash(HashLen.Long, Worktree.Unchecked);
 
-    try std.testing.expect(head.len == 40);
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        std.fs.cwd().deleteFile("test-long-unchecked-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-long-unchecked") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "bd3027fa569ea15ca76d84db21c67e2d514c1a5a",
+        head,
+    ));
 }
 
 test "hash long (checked)" {
-    var ghx = try Ghext.init(std.testing.allocator);
-    defer ghx.deinit(std.testing.allocator);
+    const test_file_a = try std.fs.cwd().createFile(
+        "test-long-checked",
+        .{ .read = true },
+    );
 
-    ghx.state = .Unknown;
+    const test_file_b = try std.fs.cwd().createFile(
+        "test-long-checked-hash",
+        .{ .read = true },
+    );
+
+    try test_file_a.writeAll("ref: long-checked-hash");
+    try test_file_b.writeAll("ae0ee9bef0a8910e712488cc7801ade57d3a203a");
+
+    PATH = "test-long-checked";
+    PREFIX = "test-";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
     const head = ghx.hash(HashLen.Long, Worktree.Checked);
 
-    try std.testing.expect(head.len == 51);
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        std.fs.cwd().deleteFile("test-long-checked-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-long-checked") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "ae0ee9bef0a8910e712488cc7801ade57d3a203a",
+        head,
+    ));
 }
 
 test "hash invalid" {
@@ -287,15 +401,40 @@ test "hash invalid" {
 }
 
 test "dirty" {
-    PATH = ".git/HEAD";
+    const test_file_a = try std.fs.cwd().createFile(
+        "test-dirty",
+        .{ .read = true },
+    );
+
+    const test_file_b = try std.fs.cwd().createFile(
+        "test-dirty-hash",
+        .{ .read = true },
+    );
+
+    try test_file_a.writeAll("ref: dirty-hash");
+    try test_file_b.writeAll("33797be57bc3b248fc5bfafd60af55a61787ce85");
+
+    PATH = "test-dirty";
+    PREFIX = "test-";
+    GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
-    defer ghx.deinit(std.testing.allocator);
-
     ghx.state = .Dirty;
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
-    try std.testing.expect(head.len == 13);
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        std.fs.cwd().deleteFile("test-dirty-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-dirty") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "33797be-dirty",
+        head,
+    ));
 }
 
 test "branch" {
@@ -310,7 +449,7 @@ test "branch" {
     );
 
     try test_file_a.writeAll("ref: branch-hash");
-    try test_file_b.writeAll("2c26b46b68ffc68ff99b");
+    try test_file_b.writeAll("10d735e581f1e2505cd69675691925490e447c44");
 
     PATH = "test-branch";
     PREFIX = "test-";
@@ -328,33 +467,33 @@ test "branch" {
 
     try std.testing.expect(std.mem.eql(
         u8,
-        "2c26b46b68ffc68ff99b",
+        "10d735e581f1e2505cd69675691925490e447c44",
         ghx.head,
     ));
 }
 
 test "headless" {
     const test_file = try std.fs.cwd().createFile(
-        "test-hash",
+        "test-headless",
         .{ .read = true },
     );
 
-    try test_file.writeAll("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33");
+    try test_file.writeAll("374444ea057e4d86d40f2a50d8191d771d96c2d7");
 
-    PATH = "test-hash";
+    PATH = "test-headless";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
 
     defer {
         test_file.close();
-        std.fs.cwd().deleteFile("test-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-headless") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
     try std.testing.expect(std.mem.eql(
         u8,
-        "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33",
+        "374444ea057e4d86d40f2a50d8191d771d96c2d7",
         ghx.head,
     ));
 }
