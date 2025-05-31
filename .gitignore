@@ -7,3 +7,5 @@
 .zig-cache/
 zig-out/
 kcov-out/
+
+test-*
