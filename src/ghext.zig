@@ -271,6 +271,28 @@ test "read (no git)" {
     try std.testing.expect(sha.items.len == 40);
 }
 
+test "headless" {
+    const test_file = try std.fs.cwd().createFile(
+        "test-hash",
+        .{ .read = true },
+    );
+
+    test_file.writeAll("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33") catch unreachable;
+
+    PATH = "test-hash";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
+
+    defer {
+        test_file.close();
+        std.fs.cwd().deleteFile("test-hash") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(u8, "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33", ghx.head));
+}
+
 test "head file missing" {
     PATH = "foo";
     GIT = false;
