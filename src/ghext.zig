@@ -270,8 +270,7 @@ test "hash invalid" {
         .{ .read = true },
     );
 
-    test_file.writeAll("foobar") catch
-        unreachable;
+    try test_file.writeAll("foobar");
 
     PATH = "test-hash-invalid";
     GIT = false;
@@ -310,8 +309,8 @@ test "branch" {
         .{ .read = true },
     );
 
-    test_file_a.writeAll("ref: branch-hash") catch unreachable;
-    test_file_b.writeAll("2c26b46b68ffc68ff99b") catch unreachable;
+    try test_file_a.writeAll("ref: branch-hash");
+    try test_file_b.writeAll("2c26b46b68ffc68ff99b");
 
     PATH = "test-branch";
     PREFIX = "test-";
@@ -340,8 +339,7 @@ test "headless" {
         .{ .read = true },
     );
 
-    test_file.writeAll("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33") catch
-        unreachable;
+    try test_file.writeAll("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33");
 
     PATH = "test-hash";
     GIT = false;
