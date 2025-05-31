@@ -23,6 +23,7 @@ pub const HashLen = enum {
 pub var PATH: []const u8 = ".git/HEAD";
 /// Git executable usage toggle.
 pub var GIT: bool = true;
+var PREFIX: []const u8 = ".git/";
 
 /// HEAD commit hash.
 head: []const u8,
@@ -88,8 +89,7 @@ fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
     const file = try fs.cwd().readFile(PATH, &buffer);
 
     if (ascii.startsWithIgnoreCase(file, "ref: ")) {
-        _ = @memcpy(file[0..5], ".git/");
-
+        @memcpy(file[0..5], PREFIX);
         const branch = mem.trimRight(u8, file, "\n");
         const hash_tmp = try fs.cwd().readFile(branch, &buffer);
 
@@ -269,6 +269,41 @@ test "read (no git)" {
     try readWithoutGit(&sha);
 
     try std.testing.expect(sha.items.len == 40);
+}
+
+test "branch" {
+    const test_file_a = try std.fs.cwd().createFile(
+        "test-branch",
+        .{ .read = true },
+    );
+
+    const test_file_b = try std.fs.cwd().createFile(
+        "test-branch-hash",
+        .{ .read = true },
+    );
+
+    test_file_a.writeAll("ref: branch-hash") catch unreachable;
+    test_file_b.writeAll("2c26b46b68ffc68ff99b") catch unreachable;
+
+    PATH = "test-branch";
+    PREFIX = "test-";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
+
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        std.fs.cwd().deleteFile("test-branch-hash") catch unreachable;
+        std.fs.cwd().deleteFile("test-branch") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "2c26b46b68ffc68ff99b",
+        ghx.head,
+    ));
 }
 
 test "headless" {
