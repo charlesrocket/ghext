@@ -206,6 +206,26 @@ test init {
     try std.testing.expect(ghx.head.len == 40);
 }
 
+test readWithGit {
+    var sha = std.ArrayList(u8).init(std.testing.allocator);
+    defer sha.deinit();
+
+    try readWithGit(std.testing.allocator, &sha);
+
+    try std.testing.expect(sha.items.len == 40);
+}
+
+test readWithoutGit {
+    var sha = std.ArrayList(u8).init(std.testing.allocator);
+    defer sha.deinit();
+
+    PATH = ".git/HEAD";
+
+    try readWithoutGit(&sha);
+
+    try std.testing.expect(sha.items.len == 40);
+}
+
 test "hash short" {
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
@@ -244,7 +264,32 @@ test "hash long (checked)" {
     try std.testing.expect(head.len == 51);
 }
 
-test "hash dirty" {
+test "hash invalid" {
+    const test_file = try std.fs.cwd().createFile(
+        "test-hash-invalid",
+        .{ .read = true },
+    );
+
+    test_file.writeAll("foobar") catch
+        unreachable;
+
+    PATH = "test-hash-invalid";
+    GIT = false;
+
+    defer {
+        test_file.close();
+        std.fs.cwd().deleteFile("test-hash-invalid") catch unreachable;
+    }
+
+    try std.testing.expectError(
+        error.InvalidHeadHash,
+        Ghext.init(std.testing.allocator),
+    );
+}
+
+test "dirty" {
+    PATH = ".git/HEAD";
+
     var ghx = try Ghext.init(std.testing.allocator);
     defer ghx.deinit(std.testing.allocator);
 
@@ -252,24 +297,6 @@ test "hash dirty" {
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
     try std.testing.expect(head.len == 13);
-}
-
-test "read (git)" {
-    var sha = std.ArrayList(u8).init(std.testing.allocator);
-    defer sha.deinit();
-
-    try readWithGit(std.testing.allocator, &sha);
-
-    try std.testing.expect(sha.items.len == 40);
-}
-
-test "read (no git)" {
-    var sha = std.ArrayList(u8).init(std.testing.allocator);
-    defer sha.deinit();
-
-    try readWithoutGit(&sha);
-
-    try std.testing.expect(sha.items.len == 40);
 }
 
 test "branch" {
