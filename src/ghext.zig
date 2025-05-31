@@ -277,7 +277,8 @@ test "headless" {
         .{ .read = true },
     );
 
-    test_file.writeAll("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33") catch unreachable;
+    test_file.writeAll("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33") catch
+        unreachable;
 
     PATH = "test-hash";
     GIT = false;
@@ -290,7 +291,11 @@ test "headless" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(u8, "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33", ghx.head));
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33",
+        ghx.head,
+    ));
 }
 
 test "head file missing" {
@@ -305,8 +310,10 @@ test "head file missing" {
 
 test "validation" {
     const sha1 = "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33";
-    const sha256 = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae";
     const sha256t = "2c26b46b68ffc68ff99b";
+    const sha256 =
+        "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae";
+
     const invalid_a = "2c26b46b68ffc68ff99z";
     const invalid_b = "2c26b46b68ffc68ff96";
 
