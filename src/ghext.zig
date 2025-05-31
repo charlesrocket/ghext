@@ -117,6 +117,7 @@ pub fn init(allocator: mem.Allocator) !Ghext {
     }
 
     const head = try arr.toOwnedSlice();
+    errdefer allocator.free(head);
 
     if (!isValid(head)) {
         return error.InvalidHeadHash;
