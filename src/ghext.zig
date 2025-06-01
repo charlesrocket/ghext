@@ -240,13 +240,18 @@ test "read (no git)" {
     try std.testing.expect(sha.items.len == 40);
 }
 
-test "hash short" {
-    try std.fs.cwd().makeDir("test-short-unchecked");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-short-unchecked",
+fn testDir(name: []const u8) !fs.Dir {
+    try fs.cwd().makeDir(name);
+    const dir = try fs.cwd().openDir(
+        name,
         .{ .iterate = true },
     );
 
+    return dir;
+}
+
+test "hash short" {
+    var test_dir = try testDir("test-short-unchecked");
     var test_file_a = try test_dir.createFile("HEAD", .{});
     var test_file_b = try test_dir.createFile("test-short-unchecked-hash", .{});
     try test_file_a.writeAll("ref: test-short-unchecked-hash");
@@ -262,7 +267,7 @@ test "hash short" {
         test_file_a.close();
         test_file_b.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-short-unchecked") catch unreachable;
+        fs.cwd().deleteTree("test-short-unchecked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -274,12 +279,7 @@ test "hash short" {
 }
 
 test "hash short (checked)" {
-    try std.fs.cwd().makeDir("test-short-checked");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-short-checked",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-short-checked");
     var test_file_a = try test_dir.createFile("HEAD", .{});
     var test_file_b = try test_dir.createFile("test-short-checked-hash", .{});
     try test_file_a.writeAll("ref: test-short-checked-hash");
@@ -297,7 +297,7 @@ test "hash short (checked)" {
         test_file_a.close();
         test_file_b.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-short-checked") catch unreachable;
+        fs.cwd().deleteTree("test-short-checked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -309,12 +309,7 @@ test "hash short (checked)" {
 }
 
 test "hash long" {
-    try std.fs.cwd().makeDir("test-long-unchecked");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-long-unchecked",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-long-unchecked");
     var test_file_a = try test_dir.createFile("HEAD", .{});
     var test_file_b = try test_dir.createFile("test-long-hash", .{});
     try test_file_a.writeAll("ref: test-long-hash");
@@ -330,7 +325,7 @@ test "hash long" {
         test_file_a.close();
         test_file_b.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-long-unchecked") catch unreachable;
+        fs.cwd().deleteTree("test-long-unchecked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -342,12 +337,7 @@ test "hash long" {
 }
 
 test "hash long (checked)" {
-    try std.fs.cwd().makeDir("test-long-checked");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-long-checked",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-long-checked");
     var test_file_a = try test_dir.createFile("HEAD", .{});
     var test_file_b = try test_dir.createFile("test-long-checked-hash", .{});
     try test_file_a.writeAll("ref: test-long-checked-hash");
@@ -363,7 +353,7 @@ test "hash long (checked)" {
         test_file_a.close();
         test_file_b.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-long-checked") catch unreachable;
+        fs.cwd().deleteTree("test-long-checked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -375,12 +365,7 @@ test "hash long (checked)" {
 }
 
 test "hash invalid" {
-    try std.fs.cwd().makeDir("test-hash-invalid");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-hash-invalid",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-hash-invalid");
     var test_file = try test_dir.createFile("HEAD", .{});
     try test_file.writeAll("foobar");
 
@@ -390,7 +375,7 @@ test "hash invalid" {
     defer {
         test_file.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-hash-invalid") catch unreachable;
+        fs.cwd().deleteTree("test-hash-invalid") catch unreachable;
     }
 
     try std.testing.expectError(
@@ -400,12 +385,7 @@ test "hash invalid" {
 }
 
 test "dirty" {
-    try std.fs.cwd().makeDir("test-dirty");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-dirty",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-dirty");
     var test_file_a = try test_dir.createFile("HEAD", .{});
     var test_file_b = try test_dir.createFile("dirty-hash", .{});
     try test_file_a.writeAll("ref: dirty-hash");
@@ -422,7 +402,7 @@ test "dirty" {
         test_file_a.close();
         test_file_b.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-dirty") catch unreachable;
+        fs.cwd().deleteTree("test-dirty") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -434,12 +414,7 @@ test "dirty" {
 }
 
 test "branch" {
-    try std.fs.cwd().makeDir("test-branch");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-branch",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-branch");
     var test_file_a = try test_dir.createFile("HEAD", .{});
     var test_file_b = try test_dir.createFile("branch-hash", .{});
     try test_file_a.writeAll("ref: branch-hash");
@@ -454,7 +429,7 @@ test "branch" {
         test_file_a.close();
         test_file_b.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-branch") catch unreachable;
+        fs.cwd().deleteTree("test-branch") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -466,12 +441,7 @@ test "branch" {
 }
 
 test "headless" {
-    try std.fs.cwd().makeDir("test-headless");
-    var test_dir = try std.fs.cwd().openDir(
-        "test-headless",
-        .{ .iterate = true },
-    );
-
+    var test_dir = try testDir("test-headless");
     var test_file = try test_dir.createFile("HEAD", .{});
     try test_file.writeAll("374444ea057e4d86d40f2a50d8191d771d96c2d7");
 
@@ -483,7 +453,7 @@ test "headless" {
     defer {
         test_file.close();
         test_dir.close();
-        std.fs.cwd().deleteTree("test-headless") catch unreachable;
+        fs.cwd().deleteTree("test-headless") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
