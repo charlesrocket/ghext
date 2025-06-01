@@ -19,11 +19,10 @@ pub const HashLen = enum {
     Long,
 };
 
-/// Location of the HEAD file.
-pub var PATH: []const u8 = ".git/HEAD";
+/// Directory of the HEAD file.
+pub var PATH: []const u8 = ".git/";
 /// Git executable usage toggle.
 pub var GIT: bool = true;
-var PREFIX: []const u8 = ".git/";
 
 /// HEAD commit hash.
 head: []const u8,
@@ -82,20 +81,29 @@ fn readWithGit(
     }
 }
 
-fn readWithoutGit(arr: *std.ArrayListAligned(u8, null)) !void {
+fn readWithoutGit(
+    arr: *std.ArrayListAligned(u8, null),
+    allocator: mem.Allocator,
+) !void {
     var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
 
-    const file = try fs.cwd().readFile(PATH, &buffer);
+    const head_location = try std.fmt.allocPrint(allocator, "{s}/HEAD", .{PATH});
+    defer allocator.free(head_location);
 
-    if (ascii.startsWithIgnoreCase(file, "ref: ")) {
-        @memcpy(file[0..5], PREFIX);
-        const branch = mem.trimRight(u8, file, "\n");
-        const hash_tmp = try fs.cwd().readFile(branch, &buffer);
+    const content = try fs.cwd().readFile(head_location, &buffer);
+    if (ascii.startsWithIgnoreCase(content, "ref: ")) {
+        const target = try std.mem.replaceOwned(u8, allocator, content, "ref: ", "");
+        defer allocator.free(target);
+        const branch = try std.fmt.allocPrint(allocator, "{s}{s}", .{ PATH, target });
+        defer allocator.free(branch);
+
+        const branch_clean = mem.trimRight(u8, branch, "\n");
+        const hash_tmp = try fs.cwd().readFile(branch_clean, &buffer);
 
         head = mem.trimRight(u8, hash_tmp, "\n");
     } else {
-        head = mem.trimRight(u8, file, "\n");
+        head = mem.trimRight(u8, content, "\n");
     }
 
     try arr.appendSlice(head);
@@ -111,9 +119,9 @@ pub fn init(allocator: mem.Allocator) !Ghext {
 
     if (GIT and binary) {
         state = getState(allocator);
-        readWithGit(allocator, &arr) catch try readWithoutGit(&arr);
+        readWithGit(allocator, &arr) catch try readWithoutGit(&arr, allocator);
     } else {
-        try readWithoutGit(&arr);
+        try readWithoutGit(&arr, allocator);
     }
 
     const head = try arr.toOwnedSlice();
