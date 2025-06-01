@@ -88,10 +88,26 @@ fn readWithoutGit(
     var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
 
-    const head_location = try std.fmt.allocPrint(allocator, "{s}/HEAD", .{PATH});
-    defer allocator.free(head_location);
+    const path_slash = try checkPathSlash(PATH);
+    const git_dir = if (path_slash) PATH else try std.fmt.allocPrint(
+        allocator,
+        "{s}/",
+        .{PATH},
+    );
+
+    const head_location = try std.fmt.allocPrint(
+        allocator,
+        "{s}HEAD",
+        .{git_dir},
+    );
+
+    defer {
+        allocator.free(head_location);
+        if (!path_slash) allocator.free(git_dir);
+    }
 
     const content = try fs.cwd().readFile(head_location, &buffer);
+
     if (ascii.startsWithIgnoreCase(content, "ref: ")) {
         const target = try std.mem.replaceOwned(
             u8,
@@ -104,7 +120,7 @@ fn readWithoutGit(
         const branch = try std.fmt.allocPrint(
             allocator,
             "{s}{s}",
-            .{ PATH, target },
+            .{ git_dir, target },
         );
 
         defer {
@@ -202,6 +218,12 @@ fn gitInstalled(allocator: mem.Allocator) bool {
     } else {
         return false;
     }
+}
+
+fn checkPathSlash(path: []const u8) !bool {
+    if (path.len == 0) return error.EmptyPath;
+    const last_char = path[path.len - 1];
+    if (last_char == 47) return true else return false;
 }
 
 fn isValid(sha: []const u8) bool {
@@ -474,6 +496,33 @@ test "headless" {
     try std.testing.expect(std.mem.eql(
         u8,
         "374444ea057e4d86d40f2a50d8191d771d96c2d7",
+        ghx.head,
+    ));
+}
+
+test "trailing slash missing" {
+    var test_dir = try testDir("test-slash");
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("test-slash-hash", .{});
+    try test_file_a.writeAll("ref: test-slash-hash");
+    try test_file_b.writeAll("e89ab9218a22b23ffc73d7ee24ea6c1c97dd0470");
+
+    PATH = "test-slash";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
+
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        test_dir.close();
+        fs.cwd().deleteTree("test-slash") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "e89ab9218a22b23ffc73d7ee24ea6c1c97dd0470",
         ghx.head,
     ));
 }
