@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2025-06-01
+
+### Bug Fixes
+
+- Deallocate on errors
+- Improve head detection
+- Handle trailing slash
+
+### Documentation
+
+- Update installation
+
+### Miscellaneous tasks
+
+- Ignore test files
+
+### Refactor
+
+- Move deallocations
+
+### Styling
+
+- Fix test formatting
+- Reformat `readWithoutGit()`
+
+### Testing
+
+- Add `headless`
+- Add `branch`
+- Add `hash invalid`
+- Optimize errors
+- Expand cases
+- Move head files
+- Add `testDir()`
+- Add `empty path`
+
 ## [0.7.0] - 2025-05-30
 
 ### Bug Fixes
