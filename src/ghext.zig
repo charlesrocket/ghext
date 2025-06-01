@@ -94,9 +94,12 @@ fn readWithoutGit(
     const content = try fs.cwd().readFile(head_location, &buffer);
     if (ascii.startsWithIgnoreCase(content, "ref: ")) {
         const target = try std.mem.replaceOwned(u8, allocator, content, "ref: ", "");
-        defer allocator.free(target);
         const branch = try std.fmt.allocPrint(allocator, "{s}{s}", .{ PATH, target });
-        defer allocator.free(branch);
+
+        defer {
+            allocator.free(target);
+            allocator.free(branch);
+        }
 
         const branch_clean = mem.trimRight(u8, branch, "\n");
         const hash_tmp = try fs.cwd().readFile(branch_clean, &buffer);
