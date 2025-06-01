@@ -241,21 +241,18 @@ test "read (no git)" {
 }
 
 test "hash short" {
-    const test_file_a = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-short-unchecked");
+    var test_dir = try std.fs.cwd().openDir(
         "test-short-unchecked",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
-    const test_file_b = try std.fs.cwd().createFile(
-        "test-short-unchecked-hash",
-        .{ .read = true },
-    );
-
-    try test_file_a.writeAll("ref: short-unchecked-hash");
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("test-short-unchecked-hash", .{});
+    try test_file_a.writeAll("ref: test-short-unchecked-hash");
     try test_file_b.writeAll("a0f4ea7d91495df92bbac2e2149dfb850fe81396");
 
-    PATH = "test-short-unchecked";
-    PREFIX = "test-";
+    PATH = "test-short-unchecked/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
@@ -264,8 +261,8 @@ test "hash short" {
     defer {
         test_file_a.close();
         test_file_b.close();
-        std.fs.cwd().deleteFile("test-short-unchecked-hash") catch unreachable;
-        std.fs.cwd().deleteFile("test-short-unchecked") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-short-unchecked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -277,21 +274,18 @@ test "hash short" {
 }
 
 test "hash short (checked)" {
-    const test_file_a = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-short-checked");
+    var test_dir = try std.fs.cwd().openDir(
         "test-short-checked",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
-    const test_file_b = try std.fs.cwd().createFile(
-        "test-short-checked-hash",
-        .{ .read = true },
-    );
-
-    try test_file_a.writeAll("ref: short-checked-hash");
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("test-short-checked-hash", .{});
+    try test_file_a.writeAll("ref: test-short-checked-hash");
     try test_file_b.writeAll("8b3fe94968382557818350080ad5f1f2510cc5be");
 
-    PATH = "test-short-checked";
-    PREFIX = "test-";
+    PATH = "test-short-checked/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
@@ -302,8 +296,8 @@ test "hash short (checked)" {
     defer {
         test_file_a.close();
         test_file_b.close();
-        std.fs.cwd().deleteFile("test-short-checked-hash") catch unreachable;
-        std.fs.cwd().deleteFile("test-short-checked") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-short-checked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -315,21 +309,18 @@ test "hash short (checked)" {
 }
 
 test "hash long" {
-    const test_file_a = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-long-unchecked");
+    var test_dir = try std.fs.cwd().openDir(
         "test-long-unchecked",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
-    const test_file_b = try std.fs.cwd().createFile(
-        "test-long-unchecked-hash",
-        .{ .read = true },
-    );
-
-    try test_file_a.writeAll("ref: long-unchecked-hash");
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("test-long-hash", .{});
+    try test_file_a.writeAll("ref: test-long-hash");
     try test_file_b.writeAll("bd3027fa569ea15ca76d84db21c67e2d514c1a5a");
 
-    PATH = "test-long-unchecked";
-    PREFIX = "test-";
+    PATH = "test-long-unchecked/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
@@ -338,8 +329,8 @@ test "hash long" {
     defer {
         test_file_a.close();
         test_file_b.close();
-        std.fs.cwd().deleteFile("test-long-unchecked-hash") catch unreachable;
-        std.fs.cwd().deleteFile("test-long-unchecked") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-long-unchecked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -351,21 +342,18 @@ test "hash long" {
 }
 
 test "hash long (checked)" {
-    const test_file_a = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-long-checked");
+    var test_dir = try std.fs.cwd().openDir(
         "test-long-checked",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
-    const test_file_b = try std.fs.cwd().createFile(
-        "test-long-checked-hash",
-        .{ .read = true },
-    );
-
-    try test_file_a.writeAll("ref: long-checked-hash");
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("test-long-checked-hash", .{});
+    try test_file_a.writeAll("ref: test-long-checked-hash");
     try test_file_b.writeAll("ae0ee9bef0a8910e712488cc7801ade57d3a203a");
 
-    PATH = "test-long-checked";
-    PREFIX = "test-";
+    PATH = "test-long-checked/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
@@ -374,8 +362,8 @@ test "hash long (checked)" {
     defer {
         test_file_a.close();
         test_file_b.close();
-        std.fs.cwd().deleteFile("test-long-checked-hash") catch unreachable;
-        std.fs.cwd().deleteFile("test-long-checked") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-long-checked") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -387,19 +375,22 @@ test "hash long (checked)" {
 }
 
 test "hash invalid" {
-    const test_file = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-hash-invalid");
+    var test_dir = try std.fs.cwd().openDir(
         "test-hash-invalid",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
+    var test_file = try test_dir.createFile("HEAD", .{});
     try test_file.writeAll("foobar");
 
-    PATH = "test-hash-invalid";
+    PATH = "test-hash-invalid/";
     GIT = false;
 
     defer {
         test_file.close();
-        std.fs.cwd().deleteFile("test-hash-invalid") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-hash-invalid") catch unreachable;
     }
 
     try std.testing.expectError(
@@ -409,21 +400,18 @@ test "hash invalid" {
 }
 
 test "dirty" {
-    const test_file_a = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-dirty");
+    var test_dir = try std.fs.cwd().openDir(
         "test-dirty",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
-    const test_file_b = try std.fs.cwd().createFile(
-        "test-dirty-hash",
-        .{ .read = true },
-    );
-
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("dirty-hash", .{});
     try test_file_a.writeAll("ref: dirty-hash");
     try test_file_b.writeAll("33797be57bc3b248fc5bfafd60af55a61787ce85");
 
-    PATH = "test-dirty";
-    PREFIX = "test-";
+    PATH = "test-dirty/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
@@ -433,8 +421,8 @@ test "dirty" {
     defer {
         test_file_a.close();
         test_file_b.close();
-        std.fs.cwd().deleteFile("test-dirty-hash") catch unreachable;
-        std.fs.cwd().deleteFile("test-dirty") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-dirty") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -446,21 +434,18 @@ test "dirty" {
 }
 
 test "branch" {
-    const test_file_a = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-branch");
+    var test_dir = try std.fs.cwd().openDir(
         "test-branch",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
-    const test_file_b = try std.fs.cwd().createFile(
-        "test-branch-hash",
-        .{ .read = true },
-    );
-
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("branch-hash", .{});
     try test_file_a.writeAll("ref: branch-hash");
     try test_file_b.writeAll("10d735e581f1e2505cd69675691925490e447c44");
 
-    PATH = "test-branch";
-    PREFIX = "test-";
+    PATH = "test-branch/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
@@ -468,8 +453,8 @@ test "branch" {
     defer {
         test_file_a.close();
         test_file_b.close();
-        std.fs.cwd().deleteFile("test-branch-hash") catch unreachable;
-        std.fs.cwd().deleteFile("test-branch") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-branch") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
@@ -481,21 +466,24 @@ test "branch" {
 }
 
 test "headless" {
-    const test_file = try std.fs.cwd().createFile(
+    try std.fs.cwd().makeDir("test-headless");
+    var test_dir = try std.fs.cwd().openDir(
         "test-headless",
-        .{ .read = true },
+        .{ .iterate = true },
     );
 
+    var test_file = try test_dir.createFile("HEAD", .{});
     try test_file.writeAll("374444ea057e4d86d40f2a50d8191d771d96c2d7");
 
-    PATH = "test-headless";
+    PATH = "test-headless/";
     GIT = false;
 
     var ghx = try Ghext.init(std.testing.allocator);
 
     defer {
         test_file.close();
-        std.fs.cwd().deleteFile("test-headless") catch unreachable;
+        test_dir.close();
+        std.fs.cwd().deleteTree("test-headless") catch unreachable;
         ghx.deinit(std.testing.allocator);
     }
 
