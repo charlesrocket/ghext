@@ -537,6 +537,16 @@ test "head file missing" {
     );
 }
 
+test "empty path" {
+    PATH = "";
+    GIT = false;
+
+    try std.testing.expectError(
+        error.EmptyPath,
+        Ghext.init(std.testing.allocator),
+    );
+}
+
 test "validation" {
     const sha1 = "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33";
     const sha256t = "2c26b46b68ffc68ff99b";
