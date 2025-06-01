@@ -9,8 +9,8 @@ Extract the hashes of last commits from `git` repositories with `ghext`.
 `build.zig.zon`:
 ```zig
 .ghext = .{
-    .url = "https://github.com/charlesrocket/ghext/archive/refs/tags/0.7.0.tar.gz",
-    .hash = "12207f2f8b3d615c4585a8adfb8cc64c91fc34ce9c266fd19231f4308b3fa5e3474e",
+    .url = "https://github.com/charlesrocket/ghext/archive/refs/tags/0.7.1.tar.gz",
+    .hash = "122009b97a8f6dc985455dcd35ee706fe0bee0658985f3ba77c3a15f26af04e849e1",
 },
 ```
 
