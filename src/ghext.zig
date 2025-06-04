@@ -88,7 +88,7 @@ fn readWithoutGit(
     var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
 
-    const path_slash = try checkPathSlash(PATH);
+    const path_slash = try isTrailingSlash(PATH);
     const git_dir = if (path_slash) PATH else try std.fmt.allocPrint(
         allocator,
         "{s}/",
@@ -142,7 +142,7 @@ fn readWithoutGit(
 /// Creates `Ghext` instance using specified allocator and reads
 /// the state of the repository.
 pub fn init(allocator: mem.Allocator) !Ghext {
-    const binary = gitInstalled(allocator);
+    const binary = isGitInstalled(allocator);
     var state: State = .None;
     var arr = std.ArrayList(u8).init(allocator);
     defer arr.deinit();
@@ -202,7 +202,13 @@ pub inline fn hash(
     return arr.slice();
 }
 
-fn gitInstalled(allocator: mem.Allocator) bool {
+fn isTrailingSlash(path: []const u8) !bool {
+    if (path.len == 0) return error.EmptyPath;
+    const last_char = path[path.len - 1];
+    if (last_char == 47) return true else return false;
+}
+
+fn isGitInstalled(allocator: mem.Allocator) bool {
     const proc = process.Child.run(.{
         .allocator = allocator,
         .argv = &.{ "git", "--version" },
@@ -218,12 +224,6 @@ fn gitInstalled(allocator: mem.Allocator) bool {
     } else {
         return false;
     }
-}
-
-fn checkPathSlash(path: []const u8) !bool {
-    if (path.len == 0) return error.EmptyPath;
-    const last_char = path[path.len - 1];
-    if (last_char == 47) return true else return false;
 }
 
 fn isValid(sha: []const u8) bool {
