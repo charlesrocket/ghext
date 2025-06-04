@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2025-06-04
+
+### Bug Fixes
+
+- Adjust array size
+
+### Documentation
+
+- Update installation
+
+### Refactor
+
+- Rename functions
+
+### Testing
+
+- Add `hash long 256 (checked)`
+
+### Build
+
+- Update zon file
+
 ## [0.7.1] - 2025-06-01
 
 ### Bug Fixes
