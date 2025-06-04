@@ -400,6 +400,36 @@ test "hash long (checked)" {
     ));
 }
 
+test "hash long 256 (checked)" {
+    var test_dir = try testDir("test-long-256-checked");
+    var test_file_a = try test_dir.createFile("HEAD", .{});
+    var test_file_b = try test_dir.createFile("test-long-256-checked-hash", .{});
+    try test_file_a.writeAll("ref: test-long-256-checked-hash");
+    try test_file_b
+        .writeAll("488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d");
+
+    PATH = "test-long-256-checked/";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
+    ghx.state = .Unknown;
+    const head = ghx.hash(HashLen.Long, Worktree.Checked);
+
+    defer {
+        test_file_a.close();
+        test_file_b.close();
+        test_dir.close();
+        fs.cwd().deleteTree("test-long-256-checked") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expect(std.mem.eql(
+        u8,
+        "488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d-unverified",
+        head,
+    ));
+}
+
 test "hash invalid" {
     var test_dir = try testDir("test-hash-invalid");
     var test_file = try test_dir.createFile("HEAD", .{});
