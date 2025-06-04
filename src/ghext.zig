@@ -179,7 +179,7 @@ pub inline fn hash(
     length: HashLen,
     check: Worktree,
 ) []const u8 {
-    var arr = std.BoundedArray(u8, 80).init(0) catch return switch (length) {
+    var arr = std.BoundedArray(u8, 75).init(0) catch return switch (length) {
         .Short => self.head[0..7],
         .Long => self.head,
     };
