@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2025-08-09
+
+### Documentation
+
+- Update installation
+
+### Build
+
+- Use `addLibrary()`
+
 ## [0.7.2] - 2025-06-04
 
 ### Bug Fixes
@@ -157,7 +167,6 @@ All notable changes to this project will be documented in this file.
 
 - Set minimum zig version
 - Add fingerprint
-- Bump version to 0.5.1
 
 ## [0.5.0] - 2024-08-27
 
