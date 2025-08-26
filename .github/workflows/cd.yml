@@ -58,7 +58,7 @@ jobs:
         run: zig build docs
 
       - name: Upload artifacts
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: zig-out/doc/
 
