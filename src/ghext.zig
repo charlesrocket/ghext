@@ -70,7 +70,7 @@ fn readWithGit(
 
     if (proc.term.Exited == 0) {
         const head = mem.trimRight(u8, proc.stdout, "\n");
-        try arr.appendSlice(head);
+        try arr.appendSlice(allocator, head);
     }
 
     defer allocator.free(proc.stdout);
@@ -136,7 +136,7 @@ fn readWithoutGit(
         head = mem.trimRight(u8, content, "\n");
     }
 
-    try arr.appendSlice(head);
+    try arr.appendSlice(allocator, head);
 }
 
 /// Creates `Ghext` instance using specified allocator and reads
@@ -144,8 +144,8 @@ fn readWithoutGit(
 pub fn init(allocator: mem.Allocator) !Ghext {
     const binary = isGitInstalled(allocator);
     var state: State = .None;
-    var arr = std.ArrayList(u8).init(allocator);
-    defer arr.deinit();
+    var arr: std.ArrayList(u8) = .empty;
+    defer arr.deinit(allocator);
 
     if (GIT and binary) {
         state = getState(allocator);
@@ -154,7 +154,7 @@ pub fn init(allocator: mem.Allocator) !Ghext {
         try readWithoutGit(&arr, allocator);
     }
 
-    const head = try arr.toOwnedSlice();
+    const head = try arr.toOwnedSlice(allocator);
     errdefer allocator.free(head);
 
     if (!isValid(head)) {
@@ -179,27 +179,25 @@ pub inline fn hash(
     length: HashLen,
     check: Worktree,
 ) []const u8 {
-    var arr = std.BoundedArray(u8, 75).init(0) catch return switch (length) {
-        .Short => self.head[0..7],
-        .Long => self.head,
-    };
+    var buffer: [75]u8 = undefined;
+    var arr = std.ArrayListUnmanaged(u8).initBuffer(&buffer);
 
     switch (length) {
-        .Short => arr.appendSlice(self.head[0..7]) catch return self.head[0..7],
-        .Long => arr.appendSlice(self.head) catch return self.head,
+        .Short => arr.appendSliceBounded(self.head[0..7]) catch return self.head[0..7],
+        .Long => arr.appendSliceBounded(self.head) catch return self.head,
     }
 
     if (check == .Checked) {
         if (self.state == .Dirty) {
-            arr.appendSlice("-dirty") catch
-                return arr.slice();
+            arr.appendSliceBounded("-dirty") catch
+                return arr.items;
         } else if (self.state == .Unknown) {
-            arr.appendSlice("-unverified") catch
-                return arr.slice();
+            arr.appendSliceBounded("-unverified") catch
+                return arr.items;
         }
     }
 
-    return arr.slice();
+    return arr.items;
 }
 
 fn isTrailingSlash(path: []const u8) !bool {
@@ -259,8 +257,8 @@ test hash {
 }
 
 test "read" {
-    var sha = std.ArrayList(u8).init(std.testing.allocator);
-    defer sha.deinit();
+    var sha: std.ArrayList(u8) = .empty;
+    defer sha.deinit(std.testing.allocator);
 
     try readWithGit(std.testing.allocator, &sha);
 
@@ -268,8 +266,8 @@ test "read" {
 }
 
 test "read (no git)" {
-    var sha = std.ArrayList(u8).init(std.testing.allocator);
-    defer sha.deinit();
+    var sha: std.ArrayList(u8) = .empty;
+    defer sha.deinit(std.testing.allocator);
 
     try readWithGit(std.testing.allocator, &sha);
 
@@ -307,11 +305,10 @@ test "hash short" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "a0f4ea7",
         head,
-    ));
+    );
 }
 
 test "hash short (checked)" {
@@ -337,11 +334,10 @@ test "hash short (checked)" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "8b3fe94-unverified",
         head,
-    ));
+    );
 }
 
 test "hash long" {
@@ -365,11 +361,10 @@ test "hash long" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "bd3027fa569ea15ca76d84db21c67e2d514c1a5a",
         head,
-    ));
+    );
 }
 
 test "hash long (checked)" {
@@ -393,11 +388,10 @@ test "hash long (checked)" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "ae0ee9bef0a8910e712488cc7801ade57d3a203a",
         head,
-    ));
+    );
 }
 
 test "hash long 256 (checked)" {
@@ -423,11 +417,10 @@ test "hash long 256 (checked)" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d-unverified",
         head,
-    ));
+    );
 }
 
 test "hash invalid" {
@@ -472,11 +465,10 @@ test "dirty" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "33797be-dirty",
         head,
-    ));
+    );
 }
 
 test "branch" {
@@ -499,11 +491,10 @@ test "branch" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "10d735e581f1e2505cd69675691925490e447c44",
         ghx.head,
-    ));
+    );
 }
 
 test "headless" {
@@ -523,11 +514,10 @@ test "headless" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "374444ea057e4d86d40f2a50d8191d771d96c2d7",
         ghx.head,
-    ));
+    );
 }
 
 test "trailing slash missing" {
@@ -550,11 +540,10 @@ test "trailing slash missing" {
         ghx.deinit(std.testing.allocator);
     }
 
-    try std.testing.expect(std.mem.eql(
-        u8,
+    try std.testing.expectEqualStrings(
         "e89ab9218a22b23ffc73d7ee24ea6c1c97dd0470",
         ghx.head,
-    ));
+    );
 }
 
 test "head file missing" {
