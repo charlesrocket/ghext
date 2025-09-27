@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.4] - 2025-09-27
+
+### Bug Fixes
+
+- Update arrays
+
+### Documentation
+
+- Update package hash
+
+### Operations
+
+- Bump actions/checkout from 4 to 5
+- Bump actions/upload-pages-artifact from 3 to 4
+- Bump actions/labeler from 5 to 6
+- Bump zig to 0.15.1
+- Set zig version
+
 ## [0.7.3] - 2025-08-09
 
 ### Documentation
