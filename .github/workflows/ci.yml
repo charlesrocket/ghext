@@ -48,6 +48,9 @@ jobs:
           use-cache: false
 
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: '2'
+
       - run: git config --global --add safe.directory /__w/ghext/ghext
       - name: Generate coverage
         run: zig build coverage --summary all
