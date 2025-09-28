@@ -48,9 +48,6 @@ jobs:
           use-cache: false
 
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: '2'
-
       - run: git config --global --add safe.directory /__w/ghext/ghext
       - name: Generate coverage
         run: zig build coverage --summary all
@@ -59,7 +56,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: kcov-out
-          working-directory: .
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
