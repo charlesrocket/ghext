@@ -46,6 +46,7 @@ pub fn build(b: *std.Build) void {
 
     const kcov = b.addSystemCommand(&.{
         "kcov",
+        "--clean",
         "--include-path=src",
         "kcov-out",
     });
