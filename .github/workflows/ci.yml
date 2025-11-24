@@ -19,7 +19,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
@@ -47,7 +47,7 @@ jobs:
           version: ${{ env.ZIG_VERSION }}
           use-cache: false
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - run: git config --global --add safe.directory /__w/ghext/ghext
       - name: Generate coverage
         run: zig build coverage --summary all
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     if: "!startsWith(github.ref, 'refs/tags/')"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: goto-bus-stop/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
