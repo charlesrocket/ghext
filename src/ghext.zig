@@ -82,8 +82,8 @@ fn readWithGit(
 }
 
 fn readWithoutGit(
-    arr: *std.ArrayListAligned(u8, null),
     allocator: mem.Allocator,
+    arr: *std.ArrayListAligned(u8, null),
 ) !void {
     var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
@@ -149,9 +149,9 @@ pub fn init(allocator: mem.Allocator) !Ghext {
 
     if (GIT and binary) {
         state = getState(allocator);
-        readWithGit(allocator, &arr) catch try readWithoutGit(&arr, allocator);
+        readWithGit(allocator, &arr) catch try readWithoutGit(allocator, &arr);
     } else {
-        try readWithoutGit(&arr, allocator);
+        try readWithoutGit(allocator, &arr);
     }
 
     const head = try arr.toOwnedSlice(allocator);
@@ -269,7 +269,7 @@ test "read (no git)" {
     var sha: std.ArrayList(u8) = .empty;
     defer sha.deinit(std.testing.allocator);
 
-    try readWithGit(std.testing.allocator, &sha);
+    try readWithoutGit(std.testing.allocator, &sha);
 
     try std.testing.expect(sha.items.len == 40);
 }
