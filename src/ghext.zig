@@ -129,14 +129,63 @@ fn readWithoutGit(
         }
 
         const branch_clean = mem.trimRight(u8, branch, "\n");
-        const hash_tmp = try fs.cwd().readFile(branch_clean, &buffer);
 
-        head = mem.trimRight(u8, hash_tmp, "\n");
+        if (fs.cwd().readFile(branch_clean, &buffer)) |hash_tmp| {
+            head = mem.trimRight(u8, hash_tmp, "\n");
+        } else |_| {
+            const ref_name = mem.trimRight(u8, target, "\n");
+
+            head = try readFromPacks(
+                allocator,
+                git_dir,
+                ref_name,
+                &buffer,
+            ) orelse
+                return error.RefNotFound;
+        }
     } else {
         head = mem.trimRight(u8, content, "\n");
     }
 
     try arr.appendSlice(allocator, head);
+}
+
+fn readFromPacks(
+    allocator: mem.Allocator,
+    git_dir: []const u8,
+    ref_name: []const u8,
+    buffer: *[1024]u8,
+) !?[]const u8 {
+    const packed_path = try std.fmt.allocPrint(
+        allocator,
+        "{s}packed-refs",
+        .{git_dir},
+    );
+
+    defer allocator.free(packed_path);
+
+    const pack = fs.cwd().readFile(packed_path, buffer) catch |err| switch (err) {
+        error.FileNotFound => return null,
+        else => return err,
+    };
+
+    var lines = mem.splitScalar(u8, pack, '\n');
+
+    while (lines.next()) |line| {
+        if (line.len == 0) continue;
+        if (std.mem.startsWith(u8, line, "#")) continue;
+        if (std.mem.startsWith(u8, line, "^")) continue;
+
+        const space = mem.indexOfScalar(u8, line, ' ') orelse continue;
+        const head = line[0..space];
+        const name = mem.trimRight(u8, line[space + 1 ..], "\r");
+
+        if (mem.eql(u8, name, ref_name)) {
+            return head;
+        }
+    }
+
+    return null;
 }
 
 /// Creates `Ghext` instance using specified allocator and reads
@@ -493,6 +542,35 @@ test "branch" {
 
     try std.testing.expectEqualStrings(
         "10d735e581f1e2505cd69675691925490e447c44",
+        ghx.head,
+    );
+}
+
+test "packed" {
+    var test_dir = try testDir("test-packed-refs");
+    var head_file = try test_dir.createFile("HEAD", .{});
+    var packed_file = try test_dir.createFile("packed-refs", .{});
+    try head_file.writeAll("ref: refs/heads/trunk");
+    try packed_file.writeAll(
+        "# pack-refs with: peeled fully-peeled sorted\n" ++
+            "7aca22de0b050687b471256624fbefc0b93a1ef5 refs/heads/trunk\n",
+    );
+
+    PATH = "test-packed-refs/";
+    GIT = false;
+
+    var ghx = try Ghext.init(std.testing.allocator);
+
+    defer {
+        head_file.close();
+        packed_file.close();
+        test_dir.close();
+        fs.cwd().deleteTree("test-packed-refs") catch unreachable;
+        ghx.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expectEqualStrings(
+        "7aca22de0b050687b471256624fbefc0b93a1ef5",
         ghx.head,
     );
 }
