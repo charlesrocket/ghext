@@ -68,13 +68,13 @@ fn readWithGit(
         },
     });
 
+    defer allocator.free(proc.stdout);
+    defer allocator.free(proc.stderr);
+
     if (proc.term.Exited == 0) {
         const head = mem.trimRight(u8, proc.stdout, "\n");
         try arr.appendSlice(allocator, head);
     }
-
-    defer allocator.free(proc.stdout);
-    defer allocator.free(proc.stderr);
 
     if (proc.term.Exited > 0) {
         return error.GitFailure;
