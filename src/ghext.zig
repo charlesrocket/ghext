@@ -303,20 +303,16 @@ fn isGitInstalled(allocator: mem.Allocator) bool {
 }
 
 fn isValid(sha: []const u8) bool {
-    switch (sha.len) {
-        20, 40, 64 => {
-            for (sha[0..]) |byte| {
-                if (!ascii.isHex(byte)) {
-                    return false;
-                }
-            }
+    const valid_lengths = [_]usize{ 20, 40, 64 };
 
+    for (valid_lengths) |vl| {
+        if (sha.len == vl) {
+            for (sha) |byte| if (!ascii.isHex(byte)) return false;
             return true;
-        },
-        else => {
-            return false;
-        },
+        }
     }
+
+    return false;
 }
 
 test init {
