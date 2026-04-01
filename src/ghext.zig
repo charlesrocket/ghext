@@ -285,7 +285,7 @@ pub inline fn hash(
 fn isTrailingSlash(path: []const u8) !bool {
     if (path.len == 0) return error.EmptyPath;
     const last_char = path[path.len - 1];
-    if (last_char == 47) return true else return false;
+    return last_char == 47;
 }
 
 fn isGitInstalled(allocator: mem.Allocator) bool {
@@ -299,11 +299,7 @@ fn isGitInstalled(allocator: mem.Allocator) bool {
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    if (proc.term.Exited == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    return proc.term.Exited == 0;
 }
 
 fn isValid(sha: []const u8) bool {
