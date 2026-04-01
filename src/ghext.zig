@@ -85,7 +85,6 @@ fn readWithoutGit(
     allocator: mem.Allocator,
     arr: *std.ArrayListAligned(u8, null),
 ) !void {
-    var buffer: [1024]u8 = undefined;
     var head: []const u8 = undefined;
 
     const path_slash = try isTrailingSlash(PATH);
@@ -106,10 +105,18 @@ fn readWithoutGit(
         if (!path_slash) allocator.free(git_dir);
     }
 
-    const content = try fs.cwd().readFile(head_location, &buffer);
+    const head_file = try fs.cwd().openFile(head_location, .{});
+    defer head_file.close();
+
+    const content = try head_file.readToEndAlloc(
+        allocator,
+        std.math.maxInt(usize),
+    );
+
+    defer allocator.free(content);
 
     if (ascii.startsWithIgnoreCase(content, "ref: ")) {
-        const target = try std.mem.replaceOwned(
+        const target = try mem.replaceOwned(
             u8,
             allocator,
             content,
@@ -130,31 +137,47 @@ fn readWithoutGit(
 
         const branch_clean = mem.trimRight(u8, branch, "\n");
 
-        if (fs.cwd().readFile(branch_clean, &buffer)) |hash_tmp| {
-            head = mem.trimRight(u8, hash_tmp, "\n");
-        } else |_| {
-            const ref_name = mem.trimRight(u8, target, "\n");
+        const branch_file = fs.cwd().openFile(branch_clean, .{}) catch |err|
+            switch (err) {
+                error.FileNotFound => {
+                    const ref_name = mem.trimRight(u8, target, "\n");
 
-            head = try readFromPacks(
-                allocator,
-                git_dir,
-                ref_name,
-                &buffer,
-            ) orelse
-                return error.RefNotFound;
-        }
+                    head = try readFromPacks(
+                        allocator,
+                        git_dir,
+                        ref_name,
+                    ) orelse
+                        return error.RefNotFound;
+
+                    defer allocator.free(head);
+
+                    try arr.appendSlice(allocator, head);
+                    return;
+                },
+                else => return err,
+            };
+
+        defer branch_file.close();
+
+        const hash_tmp = try branch_file.readToEndAlloc(
+            allocator,
+            std.math.maxInt(usize),
+        );
+
+        defer allocator.free(hash_tmp);
+
+        head = mem.trimRight(u8, hash_tmp, "\n");
+        try arr.appendSlice(allocator, head);
     } else {
         head = mem.trimRight(u8, content, "\n");
+        try arr.appendSlice(allocator, head);
     }
-
-    try arr.appendSlice(allocator, head);
 }
 
 fn readFromPacks(
     allocator: mem.Allocator,
     git_dir: []const u8,
     ref_name: []const u8,
-    buffer: *[1024]u8,
 ) !?[]const u8 {
     const packed_path = try std.fmt.allocPrint(
         allocator,
@@ -164,24 +187,30 @@ fn readFromPacks(
 
     defer allocator.free(packed_path);
 
-    const pack = fs.cwd().readFile(packed_path, buffer) catch |err| switch (err) {
-        error.FileNotFound => return null,
-        else => return err,
-    };
+    const file = fs.cwd().openFile(packed_path, .{}) catch |err|
+        switch (err) {
+            error.FileNotFound => return null,
+            else => return err,
+        };
+
+    defer file.close();
+
+    const pack = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(pack);
 
     var lines = mem.splitScalar(u8, pack, '\n');
 
     while (lines.next()) |line| {
+        if (mem.startsWith(u8, line, "#")) continue;
+        if (mem.startsWith(u8, line, "^")) continue;
         if (line.len == 0) continue;
-        if (std.mem.startsWith(u8, line, "#")) continue;
-        if (std.mem.startsWith(u8, line, "^")) continue;
 
         const space = mem.indexOfScalar(u8, line, ' ') orelse continue;
         const head = line[0..space];
         const name = mem.trimRight(u8, line[space + 1 ..], "\r");
 
         if (mem.eql(u8, name, ref_name)) {
-            return head;
+            return try allocator.dupe(u8, head);
         }
     }
 
@@ -198,7 +227,10 @@ pub fn init(allocator: mem.Allocator) !Ghext {
 
     if (GIT and binary) {
         state = getState(allocator);
-        readWithGit(allocator, &arr) catch try readWithoutGit(allocator, &arr);
+        readWithGit(allocator, &arr) catch try readWithoutGit(
+            allocator,
+            &arr,
+        );
     } else {
         try readWithoutGit(allocator, &arr);
     }
@@ -232,7 +264,8 @@ pub inline fn hash(
     var arr = std.ArrayListUnmanaged(u8).initBuffer(&buffer);
 
     switch (length) {
-        .Short => arr.appendSliceBounded(self.head[0..7]) catch return self.head[0..7],
+        .Short => arr.appendSliceBounded(self.head[0..7]) catch
+            return self.head[0..7],
         .Long => arr.appendSliceBounded(self.head) catch return self.head,
     }
 
