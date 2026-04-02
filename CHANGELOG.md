@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.5] - 2026-04-02
+
+### Bug Fixes
+
+- Drop static buffer
+
+### Features
+
+- Support packed refs
+
+### Operations
+
+- Switch to kcov container
+- Set `fetch-depth`
+- Update coverage job
+- Bump actions/checkout from 5 to 6
+- Bump codecov/codecov-action from 5 to 6
+- Bump actions/deploy-pages from 4 to 5
+
+### Refactor
+
+- Optimize returns
+- Move `proc` deallocations
+- Optimize `isValid()`
+- Use direct comparison
+
+### Testing
+
+- Fix coverage
+- Fix no-git case
+
+### Build
+
+- Fix kcov command
+- Clean kcov runs
+
 ## [0.7.4] - 2025-09-27
 
 ### Bug Fixes
