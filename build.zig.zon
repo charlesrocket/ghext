@@ -1,6 +1,6 @@
 .{
     .name = .ghext,
-    .version = "0.7.5",
+    .version = "0.7.6",
     .minimum_zig_version = "0.15.1",
     .fingerprint = 0xed30ccbc3790a674,
     .dependencies = .{},
