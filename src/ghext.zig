@@ -31,9 +31,8 @@ state: State,
 /// `git` binary detection.
 binary: bool,
 
-fn getState(allocator: mem.Allocator) State {
-    const proc = process.Child.run(.{
-        .allocator = allocator,
+fn getState(allocator: mem.Allocator, io: std.Io) State {
+    const proc = process.run(allocator, io, .{
         .argv = &.{
             "git",
             "diff-index",
@@ -48,7 +47,7 @@ fn getState(allocator: mem.Allocator) State {
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    if (proc.term.Exited == 1) {
+    if (proc.term.exited == 1) {
         return State.Dirty;
     } else {
         return State.Clean;
@@ -58,25 +57,27 @@ fn getState(allocator: mem.Allocator) State {
 fn readWithGit(
     allocator: mem.Allocator,
     arr: *std.ArrayListAligned(u8, null),
+    io: std.Io,
 ) !void {
-    const proc = try process.Child.run(.{
-        .allocator = allocator,
+    const proc = process.run(allocator, io, .{
         .argv = &.{
             "git",
             "rev-parse",
             "HEAD",
         },
-    });
+    }) catch {
+        return error.GitProcessFailure;
+    };
 
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    if (proc.term.Exited == 0) {
-        const head = mem.trimRight(u8, proc.stdout, "\n");
+    if (proc.term.exited == 0) {
+        const head = mem.trimEnd(u8, proc.stdout, "\n");
         try arr.appendSlice(allocator, head);
     }
 
-    if (proc.term.Exited > 0) {
+    if (proc.term.exited > 0) {
         return error.GitFailure;
     }
 }
@@ -84,6 +85,7 @@ fn readWithGit(
 fn readWithoutGit(
     allocator: mem.Allocator,
     arr: *std.ArrayListAligned(u8, null),
+    io: std.Io,
 ) !void {
     var head: []const u8 = undefined;
 
@@ -105,13 +107,11 @@ fn readWithoutGit(
         if (!path_slash) allocator.free(git_dir);
     }
 
-    const head_file = try fs.cwd().openFile(head_location, .{});
-    defer head_file.close();
+    const head_file = try Dir.cwd().openFile(io, head_location, .{});
+    defer head_file.close(io);
 
-    const content = try head_file.readToEndAlloc(
-        allocator,
-        std.math.maxInt(usize),
-    );
+    var head_reader = head_file.reader(io, &.{});
+    const content = try head_reader.interface.allocRemaining(allocator, .limited(std.math.maxInt(usize)));
 
     defer allocator.free(content);
 
@@ -135,17 +135,18 @@ fn readWithoutGit(
             allocator.free(branch);
         }
 
-        const branch_clean = mem.trimRight(u8, branch, "\n");
+        const branch_clean = mem.trimEnd(u8, branch, "\n");
 
-        const branch_file = fs.cwd().openFile(branch_clean, .{}) catch |err|
+        const branch_file = Dir.cwd().openFile(io, branch_clean, .{}) catch |err|
             switch (err) {
                 error.FileNotFound => {
-                    const ref_name = mem.trimRight(u8, target, "\n");
+                    const ref_name = mem.trimEnd(u8, target, "\n");
 
                     head = try readFromPacks(
                         allocator,
                         git_dir,
                         ref_name,
+                        io,
                     ) orelse
                         return error.RefNotFound;
 
@@ -157,19 +158,16 @@ fn readWithoutGit(
                 else => return err,
             };
 
-        defer branch_file.close();
+        defer branch_file.close(io);
 
-        const hash_tmp = try branch_file.readToEndAlloc(
-            allocator,
-            std.math.maxInt(usize),
-        );
+        var branch_reader = branch_file.reader(io, &.{});
+        const branch_content = try branch_reader.interface.allocRemaining(allocator, .limited(std.math.maxInt(usize)));
+        defer allocator.free(branch_content);
 
-        defer allocator.free(hash_tmp);
-
-        head = mem.trimRight(u8, hash_tmp, "\n");
+        head = mem.trimEnd(u8, branch_content, "\n");
         try arr.appendSlice(allocator, head);
     } else {
-        head = mem.trimRight(u8, content, "\n");
+        head = mem.trimEnd(u8, content, "\n");
         try arr.appendSlice(allocator, head);
     }
 }
@@ -178,27 +176,24 @@ fn readFromPacks(
     allocator: mem.Allocator,
     git_dir: []const u8,
     ref_name: []const u8,
+    io: std.Io,
 ) !?[]const u8 {
-    const packed_path = try std.fmt.allocPrint(
+    const pack_location = try std.fmt.allocPrint(
         allocator,
         "{s}packed-refs",
         .{git_dir},
     );
 
-    defer allocator.free(packed_path);
+    defer allocator.free(pack_location);
 
-    const file = fs.cwd().openFile(packed_path, .{}) catch |err|
-        switch (err) {
-            error.FileNotFound => return null,
-            else => return err,
-        };
+    const pack_file = try Dir.cwd().openFile(io, pack_location, .{});
+    defer pack_file.close(io);
 
-    defer file.close();
+    var file_reader = pack_file.reader(io, &.{});
+    const content = try file_reader.interface.allocRemaining(allocator, .limited(std.math.maxInt(usize)));
+    defer allocator.free(content);
 
-    const pack = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(pack);
-
-    var lines = mem.splitScalar(u8, pack, '\n');
+    var lines = mem.splitScalar(u8, content, '\n');
 
     while (lines.next()) |line| {
         if (mem.startsWith(u8, line, "#")) continue;
@@ -207,7 +202,7 @@ fn readFromPacks(
 
         const space = mem.indexOfScalar(u8, line, ' ') orelse continue;
         const head = line[0..space];
-        const name = mem.trimRight(u8, line[space + 1 ..], "\r");
+        const name = mem.trimEnd(u8, line[space + 1 ..], "\r");
 
         if (mem.eql(u8, name, ref_name)) {
             return try allocator.dupe(u8, head);
@@ -220,19 +215,29 @@ fn readFromPacks(
 /// Creates `Ghext` instance using specified allocator and reads
 /// the state of the repository.
 pub fn init(allocator: mem.Allocator) !Ghext {
-    const binary = isGitInstalled(allocator);
+    var threaded: std.Io.Threaded = .init(allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+
+    defer threaded.deinit();
+
+    const io = threaded.io();
+    const binary = isGitInstalled(allocator, io);
+
     var state: State = .None;
     var arr: std.ArrayList(u8) = .empty;
+
     defer arr.deinit(allocator);
 
     if (GIT and binary) {
-        state = getState(allocator);
-        readWithGit(allocator, &arr) catch try readWithoutGit(
+        state = getState(allocator, io);
+        readWithGit(allocator, &arr, io) catch try readWithoutGit(
             allocator,
             &arr,
+            io,
         );
     } else {
-        try readWithoutGit(allocator, &arr);
+        try readWithoutGit(allocator, &arr, io);
     }
 
     const head = try arr.toOwnedSlice(allocator);
@@ -288,9 +293,8 @@ fn isTrailingSlash(path: []const u8) !bool {
     return last_char == 47;
 }
 
-fn isGitInstalled(allocator: mem.Allocator) bool {
-    const proc = process.Child.run(.{
-        .allocator = allocator,
+fn isGitInstalled(allocator: mem.Allocator, io: std.Io) bool {
+    const proc = process.run(allocator, io, .{
         .argv = &.{ "git", "--version" },
     }) catch {
         return false;
@@ -299,7 +303,7 @@ fn isGitInstalled(allocator: mem.Allocator) bool {
     defer allocator.free(proc.stdout);
     defer allocator.free(proc.stderr);
 
-    return proc.term.Exited == 0;
+    return proc.term.exited == 0;
 }
 
 fn isValid(sha: []const u8) bool {
@@ -327,7 +331,7 @@ test "read" {
     var sha: std.ArrayList(u8) = .empty;
     defer sha.deinit(std.testing.allocator);
 
-    try readWithGit(std.testing.allocator, &sha);
+    try readWithGit(std.testing.allocator, &sha, std.testing.io);
 
     try std.testing.expect(sha.items.len == 40);
 }
@@ -336,40 +340,48 @@ test "read (no git)" {
     var sha: std.ArrayList(u8) = .empty;
     defer sha.deinit(std.testing.allocator);
 
-    try readWithoutGit(std.testing.allocator, &sha);
+    try readWithoutGit(std.testing.allocator, &sha, std.testing.io);
 
     try std.testing.expect(sha.items.len == 40);
 }
 
-fn testDir(name: []const u8) !fs.Dir {
-    try fs.cwd().makeDir(name);
-    const dir = try fs.cwd().openDir(
-        name,
-        .{ .iterate = true },
-    );
+fn testDir(name: []const u8) !Dir {
+    try Dir.cwd().createDir(std.testing.io, name, @enumFromInt(0o755));
+    const dir = try Dir.cwd().openDir(std.testing.io, name, .{});
 
     return dir;
 }
 
 test "hash short" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-short-unchecked");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("test-short-unchecked-hash", .{});
-    try test_file_a.writeAll("ref: test-short-unchecked-hash");
-    try test_file_b.writeAll("a0f4ea7d91495df92bbac2e2149dfb850fe81396");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "test-short-unchecked-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: test-short-unchecked-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("a0f4ea7d91495df92bbac2e2149dfb850fe81396");
+    try w_b.interface.flush();
 
     PATH = "test-short-unchecked/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
     const head = ghx.hash(HashLen.Short, Worktree.Unchecked);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-short-unchecked") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+        Dir.cwd().deleteTree(io, "test-short-unchecked") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -379,26 +391,37 @@ test "hash short" {
 }
 
 test "hash short (checked)" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-short-checked");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("test-short-checked-hash", .{});
-    try test_file_a.writeAll("ref: test-short-checked-hash");
-    try test_file_b.writeAll("8b3fe94968382557818350080ad5f1f2510cc5be");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "test-short-checked-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: test-short-checked-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("8b3fe94968382557818350080ad5f1f2510cc5be");
+    try w_b.interface.flush();
 
     PATH = "test-short-checked/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
     ghx.state = .Unknown;
 
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-short-checked") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+        Dir.cwd().deleteTree(io, "test-short-checked") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -408,24 +431,36 @@ test "hash short (checked)" {
 }
 
 test "hash long" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-long-unchecked");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("test-long-hash", .{});
-    try test_file_a.writeAll("ref: test-long-hash");
-    try test_file_b.writeAll("bd3027fa569ea15ca76d84db21c67e2d514c1a5a");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "test-long-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: test-long-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("bd3027fa569ea15ca76d84db21c67e2d514c1a5a");
+    try w_b.interface.flush();
 
     PATH = "test-long-unchecked/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
     const head = ghx.hash(HashLen.Long, Worktree.Unchecked);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-long-unchecked") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-long-unchecked") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -435,24 +470,36 @@ test "hash long" {
 }
 
 test "hash long (checked)" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-long-checked");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("test-long-checked-hash", .{});
-    try test_file_a.writeAll("ref: test-long-checked-hash");
-    try test_file_b.writeAll("ae0ee9bef0a8910e712488cc7801ade57d3a203a");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "test-long-checked-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: test-long-checked-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("ae0ee9bef0a8910e712488cc7801ade57d3a203a");
+    try w_b.interface.flush();
 
     PATH = "test-long-checked/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
     const head = ghx.hash(HashLen.Long, Worktree.Checked);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-long-checked") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-long-checked") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -462,26 +509,37 @@ test "hash long (checked)" {
 }
 
 test "hash long 256 (checked)" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-long-256-checked");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("test-long-256-checked-hash", .{});
-    try test_file_a.writeAll("ref: test-long-256-checked-hash");
-    try test_file_b
-        .writeAll("488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "test-long-256-checked-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: test-long-256-checked-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d");
+    try w_b.interface.flush();
 
     PATH = "test-long-256-checked/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
     ghx.state = .Unknown;
     const head = ghx.hash(HashLen.Long, Worktree.Checked);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-long-256-checked") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-long-256-checked") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -491,45 +549,65 @@ test "hash long 256 (checked)" {
 }
 
 test "hash invalid" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-hash-invalid");
-    var test_file = try test_dir.createFile("HEAD", .{});
-    try test_file.writeAll("foobar");
+    var test_file = try test_dir.createFile(io, "HEAD", .{});
+
+    var buf: [512]u8 = undefined;
+    var w = test_file.writer(io, &buf);
+
+    try w.interface.writeAll("foobar");
+    try w.interface.flush();
 
     PATH = "test-hash-invalid/";
     GIT = false;
 
     defer {
-        test_file.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-hash-invalid") catch unreachable;
+        test_file.close(io);
+        test_dir.close(io);
+        Dir.cwd().deleteTree(io, "test-hash-invalid") catch unreachable;
     }
 
     try std.testing.expectError(
         error.InvalidHeadHash,
-        Ghext.init(std.testing.allocator),
+        Ghext.init(allocator),
     );
 }
 
 test "dirty" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-dirty");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("dirty-hash", .{});
-    try test_file_a.writeAll("ref: dirty-hash");
-    try test_file_b.writeAll("33797be57bc3b248fc5bfafd60af55a61787ce85");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "dirty-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: dirty-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("33797be57bc3b248fc5bfafd60af55a61787ce85");
+    try w_b.interface.flush();
 
     PATH = "test-dirty/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
     ghx.state = .Dirty;
     const head = ghx.hash(HashLen.Short, Worktree.Checked);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-dirty") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-dirty") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -539,23 +617,35 @@ test "dirty" {
 }
 
 test "branch" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-branch");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("branch-hash", .{});
-    try test_file_a.writeAll("ref: branch-hash");
-    try test_file_b.writeAll("10d735e581f1e2505cd69675691925490e447c44");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "branch-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: branch-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("10d735e581f1e2505cd69675691925490e447c44");
+    try w_b.interface.flush();
 
     PATH = "test-branch/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-branch") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-branch") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -565,26 +655,39 @@ test "branch" {
 }
 
 test "packed" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-packed-refs");
-    var head_file = try test_dir.createFile("HEAD", .{});
-    var packed_file = try test_dir.createFile("packed-refs", .{});
-    try head_file.writeAll("ref: refs/heads/trunk");
-    try packed_file.writeAll(
+    var head_file = try test_dir.createFile(io, "HEAD", .{});
+    var packed_file = try test_dir.createFile(io, "packed-refs", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_h = head_file.writer(io, &buf);
+    var w_p = packed_file.writer(io, &buf);
+
+    try w_h.interface.writeAll("ref: refs/heads/trunk");
+    try w_h.interface.flush();
+
+    try w_p.interface.writeAll(
         "# pack-refs with: peeled fully-peeled sorted\n" ++
             "7aca22de0b050687b471256624fbefc0b93a1ef5 refs/heads/trunk\n",
     );
 
+    try w_p.interface.flush();
+
     PATH = "test-packed-refs/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
 
     defer {
-        head_file.close();
-        packed_file.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-packed-refs") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        head_file.close(io);
+        packed_file.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-packed-refs") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -594,20 +697,28 @@ test "packed" {
 }
 
 test "headless" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-headless");
-    var test_file = try test_dir.createFile("HEAD", .{});
-    try test_file.writeAll("374444ea057e4d86d40f2a50d8191d771d96c2d7");
+    var test_file = try test_dir.createFile(io, "HEAD", .{});
+
+    var buf: [512]u8 = undefined;
+    var w = test_file.writer(io, &buf);
+
+    try w.interface.writeAll("374444ea057e4d86d40f2a50d8191d771d96c2d7");
+    try w.interface.flush();
 
     PATH = "test-headless/";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
 
     defer {
-        test_file.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-headless") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file.close(io);
+        test_dir.close(io);
+        Dir.cwd().deleteTree(io, "test-headless") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -617,23 +728,35 @@ test "headless" {
 }
 
 test "trailing slash missing" {
+    const allocator = testing.allocator;
+    const io = testing.io;
+
     var test_dir = try testDir("test-slash");
-    var test_file_a = try test_dir.createFile("HEAD", .{});
-    var test_file_b = try test_dir.createFile("test-slash-hash", .{});
-    try test_file_a.writeAll("ref: test-slash-hash");
-    try test_file_b.writeAll("e89ab9218a22b23ffc73d7ee24ea6c1c97dd0470");
+    var test_file_a = try test_dir.createFile(io, "HEAD", .{});
+    var test_file_b = try test_dir.createFile(io, "test-slash-hash", .{});
+
+    var buf: [512]u8 = undefined;
+    var w_a = test_file_a.writer(io, &buf);
+    var w_b = test_file_b.writer(io, &buf);
+
+    try w_a.interface.writeAll("ref: test-slash-hash");
+    try w_a.interface.flush();
+
+    try w_b.interface.writeAll("e89ab9218a22b23ffc73d7ee24ea6c1c97dd0470");
+    try w_b.interface.flush();
 
     PATH = "test-slash";
     GIT = false;
 
-    var ghx = try Ghext.init(std.testing.allocator);
+    var ghx = try Ghext.init(allocator);
 
     defer {
-        test_file_a.close();
-        test_file_b.close();
-        test_dir.close();
-        fs.cwd().deleteTree("test-slash") catch unreachable;
-        ghx.deinit(std.testing.allocator);
+        test_file_a.close(io);
+        test_file_b.close(io);
+        test_dir.close(io);
+
+        Dir.cwd().deleteTree(io, "test-slash") catch unreachable;
+        ghx.deinit(allocator);
     }
 
     try std.testing.expectEqualStrings(
@@ -681,7 +804,8 @@ test "validation" {
 const Ghext = @This();
 
 const std = @import("std");
-const fs = std.fs;
+const Dir = std.Io.Dir;
 const ascii = std.ascii;
 const process = std.process;
 const mem = std.mem;
+const testing = std.testing;
