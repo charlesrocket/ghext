@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.6] - 2026-04-25
+
+### Bug Fixes
+
+- Switch to `std.Io`
+
+### Operations
+
+- Bump actions/upload-pages-artifact from 4 to 5
+- Bump zig to 0.16
+
 ## [0.7.5] - 2026-04-02
 
 ### Bug Fixes
