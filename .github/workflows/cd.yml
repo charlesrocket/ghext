@@ -1,5 +1,4 @@
 ---
-
 name: CD
 "on":
   workflow_call:
@@ -9,12 +8,11 @@ name: CD
         type: string
 
 env:
-  ZIG_VERSION: 0.15.1
+  ZIG_VERSION: 0.16.0
 
 concurrency:
   group: "pages"
   cancel-in-progress: true
-
 
 permissions:
   contents: read
