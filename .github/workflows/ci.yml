@@ -52,7 +52,7 @@ jobs:
         run: zig build coverage --summary all
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           directory: kcov-out
           verbose: true
