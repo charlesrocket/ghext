@@ -1,5 +1,5 @@
 # `ghext`
-[![CI](https://github.com/charlesrocket/ghext/actions/workflows/ci.yml/badge.svg?branch=trunk)](https://github.com/charlesrocket/ghext/actions/workflows/ci.yml)
+[![CI](https://codeberg.org/charlesrocket/ghext/badges/workflows/ci.yml/badge.svg?branch=trunk)](https://codeberg.org/charlesrocket/ghext/actions)
 [![codecov](https://codecov.io/gh/charlesrocket/ghext/branch/trunk/graph/badge.svg)](https://codecov.io/gh/charlesrocket/ghext)
 
 Extract the hashes of last commits from `git` repositories with `ghext`.
