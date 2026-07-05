@@ -1,0 +1,68 @@
+---
+name: CI
+"on": [push, pull_request]
+
+env:
+  ZIG_VERSION: 0.16.0
+
+jobs:
+  test:
+    name: Test | ${{ matrix.mode }}
+    strategy:
+      matrix:
+        mode: ["fast", "safe", "small", "off"]
+
+    runs-on: codeberg-small
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Zig
+        uses: https://github.com/goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Build
+        run: zig build --release=${{ matrix.mode }} --verbose --summary all
+      - name: Test
+        run: zig build test --release=${{ matrix.mode }} --summary all
+
+  coverage:
+    name: Test coverage
+    runs-on: codeberg-small
+    if: forgejo.ref_type != 'tag'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kcov curl gpg git tar xz-utils
+
+      - name: Install Zig
+        uses: https://github.com/goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Configure Git
+        run: git config --global --add safe.directory /__w/ghext/ghext
+      - name: Generate coverage
+        run: zig build coverage --summary all
+      - name: Install codecov
+        run: curl -Os https://cli.codecov.io/latest/linux/codecov && sudo chmod +x codecov
+      - name: Upload coverage
+        run: ./codecov upload-process -s kcov-out --git-service github -t ${{ secrets.CODECOV_TOKEN }} -n ${{ forgejo.run_id }}
+
+  lint:
+    name: Format
+    runs-on: codeberg-tiny
+    if: forgejo.ref_type != 'tag'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Zig
+        uses: https://github.com/goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Check format
+        run: zig fmt --check .
