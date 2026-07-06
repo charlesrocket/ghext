@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.7] - 2026-07-06
+
+### Documentation
+
+- Update installation
+- Add `Contributing`
+- Update ci badge
+- Add gh ci badges
+- Fix site title
+
+### Operations
+
+- Bump codecov/codecov-action from 6 to 7
+- Bump actions/checkout from 6 to 7
+- Update actions
+- Move `coverage` job
+- Move `docs` job
+- Fix `coverage` step
+- Fix `release` job
+- Drop dependabot
+
+### Styling
+
+- Fix formatting
+
 ## [0.7.6] - 2026-04-25
 
 ### Bug Fixes
