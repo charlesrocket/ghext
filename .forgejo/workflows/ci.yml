@@ -51,3 +51,27 @@ jobs:
     uses: charlesrocket/reusable/.forgejo/workflows/release.yml@trunk
     with:
       skip-assets: true
+
+  docs:
+    name: Deploy documentation
+    runs-on: codeberg-tiny
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Zig
+        uses: https://github.com/goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Generate documentation
+        run: zig build docs
+
+      - name: Upload artifacts
+        uses: https://codeberg.org/git-pages/action@v2
+        with:
+          site: https://${{ forgejo.repository_owner }}.codeberg.page/ghext/
+          token: ${{ forgejo.token }}
+          source: zig-out/doc/

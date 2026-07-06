@@ -1,6 +1,5 @@
 # `ghext`
 [![CI](https://codeberg.org/charlesrocket/ghext/badges/workflows/ci.yml/badge.svg?branch=trunk)](https://codeberg.org/charlesrocket/ghext/actions)
-[![Docs](https://github.com/charlesrocket/ghext/actions/workflows/docs.yml/badge.svg?branch=trunk)](https://github.com/charlesrocket/ghext/actions/workflows/docs.yml)
 [![Coverage](https://github.com/charlesrocket/ghext/actions/workflows/coverage.yml/badge.svg?branch=trunk)](https://github.com/charlesrocket/ghext/actions/workflows/coverage.yml)
 [![codecov](https://codecov.io/gh/charlesrocket/ghext/branch/trunk/graph/badge.svg)](https://codecov.io/gh/charlesrocket/ghext)
 
