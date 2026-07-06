@@ -44,6 +44,10 @@ jobs:
   release:
     name: Create release
     needs: test
+    if: >-
+      forgejo.ref_type == 'tag' &&
+      forgejo.repository_owner == 'charlesrocket'
+
     uses: charlesrocket/reusable/.forgejo/workflows/release.yml@trunk
     with:
       skip-assets: true
