@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_unit_tests.step);
 
     const lib_docs = b.addLibrary(.{
-        .name = "docs",
+        .name = "ghext",
         .linkage = .static,
         .root_module = lib_mod,
     });
