@@ -65,7 +65,7 @@ const VERSION = build_options.version;
 
 ## Documentation
 
-[API reference](https://charlesrocket.github.io/ghext/)
+[API reference](https://charlesrocket.codeberg.page/ghext/)
 
 ## Contributing
 
