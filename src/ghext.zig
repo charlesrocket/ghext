@@ -111,7 +111,11 @@ fn readWithoutGit(
     defer head_file.close(io);
 
     var head_reader = head_file.reader(io, &.{});
-    const content = try head_reader.interface.allocRemaining(allocator, .limited(std.math.maxInt(usize)));
+
+    const content = try head_reader.interface.allocRemaining(
+        allocator,
+        .limited(std.math.maxInt(usize)),
+    );
 
     defer allocator.free(content);
 
@@ -137,7 +141,11 @@ fn readWithoutGit(
 
         const branch_clean = mem.trimEnd(u8, branch, "\n");
 
-        const branch_file = Dir.cwd().openFile(io, branch_clean, .{}) catch |err|
+        const branch_file = Dir.cwd().openFile(
+            io,
+            branch_clean,
+            .{},
+        ) catch |err|
             switch (err) {
                 error.FileNotFound => {
                     const ref_name = mem.trimEnd(u8, target, "\n");
@@ -161,7 +169,12 @@ fn readWithoutGit(
         defer branch_file.close(io);
 
         var branch_reader = branch_file.reader(io, &.{});
-        const branch_content = try branch_reader.interface.allocRemaining(allocator, .limited(std.math.maxInt(usize)));
+
+        const branch_content = try branch_reader.interface.allocRemaining(
+            allocator,
+            .limited(std.math.maxInt(usize)),
+        );
+
         defer allocator.free(branch_content);
 
         head = mem.trimEnd(u8, branch_content, "\n");
@@ -190,7 +203,12 @@ fn readFromPacks(
     defer pack_file.close(io);
 
     var file_reader = pack_file.reader(io, &.{});
-    const content = try file_reader.interface.allocRemaining(allocator, .limited(std.math.maxInt(usize)));
+
+    const content = try file_reader.interface.allocRemaining(
+        allocator,
+        .limited(std.math.maxInt(usize)),
+    );
+
     defer allocator.free(content);
 
     var lines = mem.splitScalar(u8, content, '\n');
@@ -358,7 +376,11 @@ test "hash short" {
 
     var test_dir = try testDir("test-short-unchecked");
     var test_file_a = try test_dir.createFile(io, "HEAD", .{});
-    var test_file_b = try test_dir.createFile(io, "test-short-unchecked-hash", .{});
+    var test_file_b = try test_dir.createFile(
+        io,
+        "test-short-unchecked-hash",
+        .{},
+    );
 
     var buf: [512]u8 = undefined;
     var w_a = test_file_a.writer(io, &buf);
@@ -396,7 +418,11 @@ test "hash short (checked)" {
 
     var test_dir = try testDir("test-short-checked");
     var test_file_a = try test_dir.createFile(io, "HEAD", .{});
-    var test_file_b = try test_dir.createFile(io, "test-short-checked-hash", .{});
+    var test_file_b = try test_dir.createFile(
+        io,
+        "test-short-checked-hash",
+        .{},
+    );
 
     var buf: [512]u8 = undefined;
     var w_a = test_file_a.writer(io, &buf);
@@ -475,7 +501,11 @@ test "hash long (checked)" {
 
     var test_dir = try testDir("test-long-checked");
     var test_file_a = try test_dir.createFile(io, "HEAD", .{});
-    var test_file_b = try test_dir.createFile(io, "test-long-checked-hash", .{});
+    var test_file_b = try test_dir.createFile(
+        io,
+        "test-long-checked-hash",
+        .{},
+    );
 
     var buf: [512]u8 = undefined;
     var w_a = test_file_a.writer(io, &buf);
@@ -514,7 +544,11 @@ test "hash long 256 (checked)" {
 
     var test_dir = try testDir("test-long-256-checked");
     var test_file_a = try test_dir.createFile(io, "HEAD", .{});
-    var test_file_b = try test_dir.createFile(io, "test-long-256-checked-hash", .{});
+    var test_file_b = try test_dir.createFile(
+        io,
+        "test-long-256-checked-hash",
+        .{},
+    );
 
     var buf: [512]u8 = undefined;
     var w_a = test_file_a.writer(io, &buf);
@@ -523,7 +557,9 @@ test "hash long 256 (checked)" {
     try w_a.interface.writeAll("ref: test-long-256-checked-hash");
     try w_a.interface.flush();
 
-    try w_b.interface.writeAll("488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d");
+    try w_b.interface
+        .writeAll("488a297bf1ea189193831ff2d90fa8c8daecd190111b1b137946a1eaca4eb83d");
+
     try w_b.interface.flush();
 
     PATH = "test-long-256-checked/";
