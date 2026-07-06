@@ -1,5 +1,5 @@
 ---
-name: CD
+name: Docs
 "on":
   push:
     tags:
@@ -18,7 +18,7 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  docs:
     name: Deploy documentation
     runs-on: ubuntu-latest
     environment:
